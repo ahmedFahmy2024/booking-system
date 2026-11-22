@@ -16,6 +16,7 @@ Versions were taken from `package.json` when this file was written. To verify a 
 | --- | --- | --- | --- |
 | `react` | 19.3.1 | web | Building all UI components. |
 | `i18next` / `react-i18next` | ^27.2.4 / ^18.0.3 | web | UI messages, Arabic plurals, and React translation hooks. |
+| `i18next-browser-languagedetector` | ^8.3.1 | web | Restores and saves the selected locale in browser storage. |
 | `react-dom` | 19.3.1 | web | Rendering the app into the DOM (`main.tsx`). |
 | `tailwindcss` | 4.3.5 | web | Tailwind CSS v4 utility styles (CSS-first config, no `tailwind.config.*`). |
 | `@tailwindcss/vite` | 4.3.5 | web | Vite plugin that compiles Tailwind v4 CSS. |

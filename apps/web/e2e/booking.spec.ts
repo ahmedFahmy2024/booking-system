@@ -58,4 +58,10 @@ test('retries a failed booking and persists exactly one booking after a reload',
   await expect(response).toBeOK()
   const bookings = z.array(z.object({ customerEmail: z.email() })).parse(await response.json())
   expect(bookings.filter((booking) => booking.customerEmail === email)).toHaveLength(1)
+
+  await page.evaluate(() => localStorage.setItem('app-locale', 'en'))
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Cinema bookings' })).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
 })

@@ -1,6 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { LocaleProvider } from '@/app/providers/locale/locale-provider'
 import type { BookingInput } from '../model/booking'
 import { BookingForm } from './BookingForm'
 
@@ -9,11 +8,7 @@ const services = [{ id: 1, name: 'Standard Screening', durationMinutes: 120 }]
 const saveError = 'تعذر حفظ الحجز. حاول مرة أخرى.'
 
 function renderForm(onSubmit: (input: BookingInput) => Promise<void>) {
-  render(
-    <LocaleProvider defaultLocale="ar-EG">
-      <BookingForm services={services} onSubmit={onSubmit} />
-    </LocaleProvider>,
-  )
+  render(<BookingForm services={services} onSubmit={onSubmit} />)
 }
 
 const fillValidForm = () => {

@@ -7,7 +7,7 @@ Read the [architecture reference](ARCHITECTURE.md) for file placement and import
 - Load [Feature-Sliced Design](../.agents/skills/feature-sliced-design/SKILL.md) before placing code for a new screen or changing slice boundaries. Route files compose the screen through its public entry point. Put screen-specific UI, state, and requests in its page slice. Extract a focused module when it has multiple current consumers and an independent reason to change.
 - Keep server state in TanStack Query. Reuse the page query keys and options from its loader, components, and mutations. After a successful mutation, refresh affected queries and preserve the existing route error and retry behavior.
 - Use React Hook Form and Zod for forms. Derive raw and parsed form types from the schema. Give fields accessible labels and preserve the user's input when a request fails. Verify visible behavior through the relevant form or browser path.
-- Use `react-i18next` for UI text and user-facing errors. Keep messages in named namespaces under the [locale provider](../apps/web/src/app/providers/locale/). Format showtimes with `Africa/Cairo` and prices with `EGP` through `Intl`. Render domain data such as film titles and seat labels from the API.
+- Use `useTranslation` for UI text and user-facing errors. The [i18next bootstrap](../apps/web/src/app/providers/locale/i18n.ts) initializes the app instance once and restores the saved language. Keep messages in named namespaces. Format showtimes with `Africa/Cairo` and prices with `EGP` through `Intl`. Render domain data such as film titles and seat labels from the API.
 
 ## API and storage
 

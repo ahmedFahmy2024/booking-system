@@ -1,19 +1,25 @@
-import { createInstance } from 'i18next'
-import { DEFAULT_LOCALE, LOCALES, type Locale } from './locale'
+import i18n from 'i18next'
+import LanguageDetector from 'i18next-browser-languagedetector'
+import { initReactI18next } from 'react-i18next'
 import { defaultNamespace, messages } from './messages'
 
-export function createAppI18n(locale: Locale) {
-  const instance = createInstance()
-  void instance.init({
+void i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
     resources: messages,
-    lng: locale,
-    supportedLngs: [...LOCALES],
-    fallbackLng: DEFAULT_LOCALE,
+    supportedLngs: Object.keys(messages),
+    fallbackLng: 'ar-EG',
     defaultNS: defaultNamespace,
-    ns: Object.keys(messages[DEFAULT_LOCALE]),
+    ns: Object.keys(messages['ar-EG']),
+    detection: {
+      order: ['localStorage'],
+      lookupLocalStorage: 'app-locale',
+      caches: ['localStorage'],
+    },
     // All first-render messages are bundled locally.
     initAsync: false,
     interpolation: { escapeValue: false },
   })
-  return instance
-}
+
+export default i18n
