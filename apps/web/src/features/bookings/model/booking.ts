@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 export interface Service {
   id: number
   name: string
@@ -28,31 +30,22 @@ export interface BookingInput {
   startsAt: string
 }
 
-export type BookingErrors = Partial<Record<keyof BookingInput, string>>
+// Form values mirror the inputs (a <select> and <input type="datetime-local">
+// both produce strings). Submit maps them to the API-shaped BookingInput.
+export const bookingFormSchema = z.object({
+  serviceId: z.string().min(1, 'Choose a service'),
+  customerName: z.string().trim().min(1, 'Enter your name'),
+  customerEmail: z.string().trim().pipe(z.email('Enter a valid email')),
+  startsAt: z
+    .string()
+    .min(1, 'Choose a date and time')
+    .refine((value) => !Number.isNaN(new Date(value).getTime()), 'Choose a date and time'),
+})
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+export type BookingFormValues = z.infer<typeof bookingFormSchema>
 
 export function toIsoFromLocal(value: string): string {
   if (!value) return ''
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '' : date.toISOString()
-}
-
-export function validateBookingInput(input: BookingInput): BookingErrors {
-  const errors: BookingErrors = {}
-
-  if (!Number.isInteger(input.serviceId) || input.serviceId <= 0) {
-    errors.serviceId = 'Choose a service'
-  }
-  if (!input.customerName.trim()) {
-    errors.customerName = 'Enter your name'
-  }
-  if (!EMAIL_PATTERN.test(input.customerEmail.trim())) {
-    errors.customerEmail = 'Enter a valid email'
-  }
-  if (!input.startsAt || Number.isNaN(new Date(input.startsAt).getTime())) {
-    errors.startsAt = 'Choose a date and time'
-  }
-
-  return errors
 }

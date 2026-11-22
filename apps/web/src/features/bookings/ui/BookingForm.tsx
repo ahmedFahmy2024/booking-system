@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
 import {
+  bookingFormSchema,
   toIsoFromLocal,
-  validateBookingInput,
-  type BookingErrors,
+  type BookingFormValues,
   type BookingInput,
   type Service,
 } from '../model/booking'
@@ -13,52 +14,48 @@ type BookingFormProps = {
 }
 
 export function BookingForm({ services, onSubmit }: BookingFormProps) {
-  const [serviceId, setServiceId] = useState('')
-  const [customerName, setCustomerName] = useState('')
-  const [customerEmail, setCustomerEmail] = useState('')
-  const [startsAt, setStartsAt] = useState('')
-  const [errors, setErrors] = useState<BookingErrors>({})
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<BookingFormValues>({
+    resolver: zodResolver(bookingFormSchema),
+    defaultValues: {
+      serviceId: '',
+      customerName: '',
+      customerEmail: '',
+      startsAt: '',
+    },
+  })
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
+  const submit = handleSubmit(async (values) => {
     const input: BookingInput = {
-      serviceId: Number(serviceId),
-      customerName,
-      customerEmail,
-      startsAt: toIsoFromLocal(startsAt),
+      serviceId: Number(values.serviceId),
+      customerName: values.customerName,
+      customerEmail: values.customerEmail,
+      startsAt: toIsoFromLocal(values.startsAt),
     }
 
-    const nextErrors = validateBookingInput(input)
-    setErrors(nextErrors)
-    if (Object.keys(nextErrors).length > 0) return
-
-    setIsSubmitting(true)
-    setSubmitError(null)
     try {
       await onSubmit(input)
-      setServiceId('')
-      setCustomerName('')
-      setCustomerEmail('')
-      setStartsAt('')
+      reset()
     } catch (cause) {
-      setSubmitError(cause instanceof Error ? cause.message : 'Could not save the booking')
-    } finally {
-      setIsSubmitting(false)
+      setError('root', {
+        message: cause instanceof Error ? cause.message : 'Could not save the booking',
+      })
     }
-  }
+  })
 
   return (
-    <form className="booking-form" onSubmit={handleSubmit} noValidate>
+    <form className="booking-form" onSubmit={submit} noValidate>
       <h2>New booking</h2>
 
       <label htmlFor="serviceId">Service</label>
       <select
         id="serviceId"
-        value={serviceId}
-        onChange={(event) => setServiceId(event.target.value)}
+        {...register('serviceId')}
         aria-invalid={Boolean(errors.serviceId)}
       >
         <option value="">Select a service</option>
@@ -68,42 +65,39 @@ export function BookingForm({ services, onSubmit }: BookingFormProps) {
           </option>
         ))}
       </select>
-      {errors.serviceId && <span role="alert">{errors.serviceId}</span>}
+      {errors.serviceId && <span role="alert">{errors.serviceId.message}</span>}
 
       <label htmlFor="customerName">Customer name</label>
       <input
         id="customerName"
-        value={customerName}
-        onChange={(event) => setCustomerName(event.target.value)}
+        {...register('customerName')}
         aria-invalid={Boolean(errors.customerName)}
       />
-      {errors.customerName && <span role="alert">{errors.customerName}</span>}
+      {errors.customerName && <span role="alert">{errors.customerName.message}</span>}
 
       <label htmlFor="customerEmail">Email</label>
       <input
         id="customerEmail"
         type="email"
-        value={customerEmail}
-        onChange={(event) => setCustomerEmail(event.target.value)}
+        {...register('customerEmail')}
         aria-invalid={Boolean(errors.customerEmail)}
       />
-      {errors.customerEmail && <span role="alert">{errors.customerEmail}</span>}
+      {errors.customerEmail && <span role="alert">{errors.customerEmail.message}</span>}
 
       <label htmlFor="startsAt">Date and time</label>
       <input
         id="startsAt"
         type="datetime-local"
-        value={startsAt}
-        onChange={(event) => setStartsAt(event.target.value)}
+        {...register('startsAt')}
         aria-invalid={Boolean(errors.startsAt)}
       />
-      {errors.startsAt && <span role="alert">{errors.startsAt}</span>}
+      {errors.startsAt && <span role="alert">{errors.startsAt.message}</span>}
 
       <button type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Saving…' : 'Create booking'}
       </button>
 
-      {submitError && <p role="alert">{submitError}</p>}
+      {errors.root && <p role="alert">{errors.root.message}</p>}
     </form>
   )
 }
