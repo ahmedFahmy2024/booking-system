@@ -27,6 +27,11 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      // Better Auth keeps its /api/auth base path on the API origin.
+      '/api/auth': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
       // Dev only: /api/bookings -> http://localhost:3000/bookings
       // In production, set VITE_API_URL to the real API origin.
       '/api': {

@@ -8,6 +8,20 @@
       "when": 1795356689780,
       "tag": "0000_woozy_wildside",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795380958885,
+      "tag": "0001_sturdy_gamora",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795381964769,
+      "tag": "0002_enforce_last_active_admin",
+      "breakpoints": true
     }
   ]
 }

@@ -35,6 +35,8 @@ Versions were taken from `package.json` when this file was written. To verify a 
 | `hono` | 4.13.16 | api | Building the API and every route group. |
 | `@hono/node-server` | 2.1.3 | api | Running the Hono app on Node. |
 | `@hono/zod-validator` | 0.9.1 | api | Validating request bodies with a Zod middleware. |
+| `better-auth` | 1.7.27 | api | Staff email/password sign-in, sessions, invitations, and password reset. |
+| `@better-auth/drizzle-adapter` | 1.7.27 | api | Drizzle-backed persistence for Better Auth. |
 | `drizzle-orm` | 0.45.4 | api | Schema and queries (SELECT/INSERT/...). |
 | `@neondatabase/serverless` | 1.2.1 | api | The Neon HTTP connection. |
 | `drizzle-kit` | 0.31.11 | api (dev) | Generating/running migrations, `db:push`, `studio`. |
@@ -141,6 +143,12 @@ Versions were taken from `package.json` when this file was written. To verify a 
 - **What it does:** Middleware that binds a Zod schema to Hono, validates the request, and exposes the result at `c.req.valid('json')`.
 - **In this project:** `bookingsRoutes.post('/', zValidator('json', createBookingSchema), ...)` in `features/bookings/index.ts`.
 - **Rule:** Do not hand-write `schema.parse(await c.req.json())` — the middleware gives you types and a 422 automatically.
+
+#### 11a. `better-auth` (^1.7.27) and `@better-auth/drizzle-adapter` (^1.7.27)
+
+- **What they do:** Staff authentication: email/password sign-in, HTTP-only cookie sessions, sign-out, password reset, and the admin plugin used for staff provisioning. The Drizzle adapter stores users, sessions, accounts, and verification tokens in Neon.
+- **In this project:** Configured in `apps/api/src/auth.ts` and mounted at `/api/auth/*` in `app.ts`. `src/auth/permissions.ts` defines the `admin` and `operations` roles; `src/auth/middleware.ts` reads the session and guards staff routes. The generated schema lives in `src/db/auth-schema.ts` and is re-exported by `src/db/schema.ts`. The first admin comes from `npm run admin:bootstrap`; later staff are invited by an admin with a 24-hour setup link. `src/features/mail/index.ts` is the local mail adapter until B7.1 adds Resend.
+- **Rule:** Do not build hand-rolled sessions, password hashing, or invitation tokens. Regenerate the Drizzle schema with `npx auth@latest generate` after changing auth options or plugins, and include the generated migration. Keep guest bookings account-free.
 
 #### 12. `drizzle-orm` (^0.45.4)
 
@@ -263,6 +271,7 @@ As stated in [`AGENTS.md`](../AGENTS.md): React + Vite in `apps/web`, a Hono API
 | `apps/web` server state | `@tanstack/react-query` | SWR / Redux / `fetch` in `useEffect` |
 | `apps/web` forms | `react-hook-form`, `@hookform/resolvers`, `zod` | Formik / Yup / per-field `useState` |
 | `apps/api` | `hono`, `@hono/node-server`, `@hono/zod-validator` | Express / Fastify / manual validation |
+| Staff identity | `better-auth`, `@better-auth/drizzle-adapter` | hand-rolled sessions, password hashing, or JWT auth |
 | Database | `drizzle-orm`, `@neondatabase/serverless`, `drizzle-kit` | Prisma / `pg` / raw SQL |
 | Unit tests | `vitest`, `@testing-library/react`, `jsdom` | Jest / Enzyme / happy-dom |
 | E2E tests | `@playwright/test` | Cypress / Puppeteer |

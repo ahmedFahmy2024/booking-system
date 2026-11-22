@@ -121,7 +121,7 @@ Mark a task complete when its stated behavior is implemented and its relevant ch
 Applies [D1](#d1--staff-sign-in-and-provisioning) and [D2](#d2--guest-link-and-checkout-access).
 
 - [x] **B2.1** Define the admin and operations permission matrix, including staff provisioning and removal.
-- [ ] **B2.2** Set up Better Auth with Hono and Drizzle. Implement first-admin bootstrap, staff invitation and password reset, sign-in, sign-out, and sessions. Add a local mail adapter to verify the 24-hour invitation limit and session revocation.
+- [x] **B2.2** Set up Better Auth with Hono and Drizzle. Implement first-admin bootstrap, staff invitation and password reset, sign-in, sign-out, and sessions. Add a local mail adapter to verify the 24-hour invitation limit and session revocation.
 - [ ] **B2.3** Enforce permissions in the Hono API, including the booking list. Verify unauthenticated, operations, and admin requests against the matrix.
 - [ ] **B2.4** Add private booking-link credentials scoped to one booking, valid through seven days after its showtime. Verify invalid, expired, and wrong-booking credentials, and reference-only requests.
 

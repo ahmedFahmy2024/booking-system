@@ -1,5 +1,7 @@
 import { integer, pgTable, serial, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
+export * from './auth-schema.js'
+
 export const services = pgTable('services', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),

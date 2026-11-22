@@ -50,6 +50,7 @@ A booking reference alone is not a credential. Staff may search by reference ins
 - Removal is **deactivation, not deletion**, so the actor recorded on significant staff actions (B6.3) stays attributable. Deactivation revokes existing sessions immediately, prevents new sign-ins, records the time and the acting admin, and keeps the staff record. An admin may reactivate a staff member.
 - An admin cannot deactivate or downgrade themselves, and cannot deactivate or downgrade the last active admin. A rejected deactivation leaves the record and sessions unchanged.
 - Guest booking links are independent of staff accounts. Deactivating staff does not change bookings, seats, or guest links.
+- **Invariant and recovery:** the last-active-admin rule is enforced at both the API and the Postgres boundary (`drizzle/0002_enforce_last_active_admin.sql`), and deactivated accounts are rejected by the API middleware even if session revocation fails. If an incident still leaves no active admin, an operator with direct Neon access can reactivate one with `UPDATE "user" SET banned = false, ban_reason = NULL WHERE id = '<admin-id>' AND role = 'admin';` on the direct (non-pooled) connection, then record the actor, time, and reason in the activity log (B6.3).
 
 ## Enforcement
 
