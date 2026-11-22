@@ -8,6 +8,34 @@
       "skillPath": "skills/agent-browser/SKILL.md",
       "computedHash": "a0dfac7503f69bcf529b2660fc79964064c4f179eb65695904ddc45fc0d99d20"
     },
+    "agent-email-inbox": {
+      "source": "resend/resend-skills",
+      "commit": "063246e39987faebc2608f968ca13a02d994a0d4",
+      "sourceType": "github",
+      "skillPath": "skills/agent-email-inbox/SKILL.md",
+      "computedHash": "61157a1f3781aca3614c1ff7777545b5a4e4cf8bec50d951d791b40796e902d0"
+    },
+    "better-auth-best-practices": {
+      "source": "better-auth/skills",
+      "commit": "20c9e88a5c007461a703f1c213572b073196113e",
+      "sourceType": "github",
+      "skillPath": "better-auth/best-practices/SKILL.md",
+      "computedHash": "2773c3687f2cf96d659049ebf2d8c86058a33541b09360712df0dc6b1404c403"
+    },
+    "better-auth-security-best-practices": {
+      "source": "better-auth/skills",
+      "commit": "20c9e88a5c007461a703f1c213572b073196113e",
+      "sourceType": "github",
+      "skillPath": "security/SKILL.md",
+      "computedHash": "36e9710eaa13c61c00bec00a4902fdc6ed829e6de13127238ae57494e93c1d9d"
+    },
+    "create-auth": {
+      "source": "better-auth/skills",
+      "commit": "20c9e88a5c007461a703f1c213572b073196113e",
+      "sourceType": "github",
+      "skillPath": "better-auth/create-auth/SKILL.md",
+      "computedHash": "6f68253a5ab812aa8c9b70c57609aca763093a594e3b07163142e0fa7d64904a"
+    },
     "domain-modeling": {
       "source": "mattpocock/skills",
       "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
@@ -21,6 +49,20 @@
       "sourceType": "github",
       "skillPath": ".agents/skills/drizzle/SKILL.md",
       "computedHash": "bc89b81dbe1ebc2f4d0d22a573cd19c6c9f5063ec4143c1af72dd4884932484a"
+    },
+    "email-and-password-best-practices": {
+      "source": "better-auth/skills",
+      "commit": "20c9e88a5c007461a703f1c213572b073196113e",
+      "sourceType": "github",
+      "skillPath": "better-auth/emailAndPassword/SKILL.md",
+      "computedHash": "407c1244202876daa748818ed41dc55afde1b3f7aec48ae3a1f1c8a7ee40465e"
+    },
+    "email-best-practices": {
+      "source": "resend/resend-skills",
+      "commit": "063246e39987faebc2608f968ca13a02d994a0d4",
+      "sourceType": "github",
+      "skillPath": "skills/email-best-practices/SKILL.md",
+      "computedHash": "9618340453f52b03987949227de251a953af1d47bf505975fce1f55032fb3451"
     },
     "feature-sliced-design": {
       "source": "feature-sliced/skills",
@@ -78,12 +120,40 @@
       "skillPath": "skills/neon-postgres/SKILL.md",
       "computedHash": "0e1db49f25e9208cb24fa2084a542d52d60a85c09271b915acc3dad6901de6a0"
     },
+    "organization-best-practices": {
+      "source": "better-auth/skills",
+      "commit": "20c9e88a5c007461a703f1c213572b073196113e",
+      "sourceType": "github",
+      "skillPath": "better-auth/organization/SKILL.md",
+      "computedHash": "e5b1238c3b62c789918fe397ed52787742e50944343de33f459629f29b0fe922"
+    },
+    "react-email": {
+      "source": "resend/resend-skills",
+      "commit": "063246e39987faebc2608f968ca13a02d994a0d4",
+      "sourceType": "github",
+      "skillPath": "skills/react-email/SKILL.md",
+      "computedHash": "51cb2479b8c98641bfd1e69e2260f53f5fad251ed2d8e7a0c3138e8899b3d4b3"
+    },
     "react-hook-form": {
       "source": "pproenca/dot-skills",
       "commit": "cf93c57cac89d6fc3e4194686000411567f5caf3",
       "sourceType": "github",
       "skillPath": "skills/.curated/react-hook-form/SKILL.md",
       "computedHash": "1bf04dd22b6b89e075c1418fe864698ae9973fdd6a0a93d76c69bdd7edcacb27"
+    },
+    "resend": {
+      "source": "resend/resend-skills",
+      "commit": "063246e39987faebc2608f968ca13a02d994a0d4",
+      "sourceType": "github",
+      "skillPath": "skills/resend/SKILL.md",
+      "computedHash": "5d09dbdf01bc6d640f2340f24069307c53a7b58c6c94c1276932c22c3abc8cb1"
+    },
+    "resend-cli": {
+      "source": "resend/resend-skills",
+      "commit": "063246e39987faebc2608f968ca13a02d994a0d4",
+      "sourceType": "github",
+      "skillPath": "skills/resend-cli/SKILL.md",
+      "computedHash": "7bb3b05bb2144a4e73819ec96b7176a8917e2fcbda79cd3abbb11f41b4afaf51"
     },
     "shadcn": {
       "source": "shadcn-ui/ui",
@@ -133,6 +203,13 @@
       "sourceType": "github",
       "skillPath": "plugins/tanstack-router/skills/tanstack-router/SKILL.md",
       "computedHash": "0dc04f63713e7f4eb62add3aa2188abc5c5e2652b246e3e839197fa27a196dbb"
+    },
+    "two-factor-authentication-best-practices": {
+      "source": "better-auth/skills",
+      "commit": "20c9e88a5c007461a703f1c213572b073196113e",
+      "sourceType": "github",
+      "skillPath": "better-auth/twoFactor/SKILL.md",
+      "computedHash": "89ca7fde92a69aec2cf7407d29058c5428e17d228e2578c79e0129d128524f38"
     },
     "vercel-composition-patterns": {
       "source": "vercel-labs/agent-skills",

@@ -1,6 +1,6 @@
 # Staff and guest permission matrix
 
-B2.1 defines who may do what before staff sign-in (B2.2), API enforcement (B2.3), and guest booking links (B2.4) are implemented. The matrix follows the accepted booking and operating rules in [the build plan](build-plan.md#accepted-booking-rules) and the terms in [the glossary](../GLOSSARY.md). Anything not listed is denied.
+B2.1 defines who may do what before staff sign-in (B2.2), API enforcement (B2.3), and guest booking links (B2.4) are implemented. The matrix follows the accepted booking and operating rules and the approved decisions [D1–D8](build-plan.md#approved-implementation-decisions) in [the build plan](build-plan.md), plus the terms in [the glossary](../GLOSSARY.md). The build plan is authoritative for implementation details; this document is the derived access reference. Anything not listed is denied.
 
 ## Actors
 
