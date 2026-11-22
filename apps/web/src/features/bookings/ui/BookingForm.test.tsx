@@ -42,7 +42,9 @@ describe('BookingForm', () => {
     expect(input.serviceId).toBe(1)
     expect(input.customerName).toBe('Ahmed')
     expect(input.startsAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
-    expect(screen.getByLabelText('Customer name')).toHaveProperty('value', '')
+    await waitFor(() =>
+      expect(screen.getByLabelText('Customer name')).toHaveProperty('value', ''),
+    )
   })
 
   it('shows a server error and keeps the entered values', async () => {
@@ -56,5 +58,23 @@ describe('BookingForm', () => {
 
     expect(await screen.findByText('That slot is taken')).toBeDefined()
     expect(screen.getByLabelText('Customer name')).toHaveProperty('value', 'Ahmed')
+  })
+
+  it('clears a previous server error on the next submit', async () => {
+    const onSubmit = vi
+      .fn<(input: BookingInput) => Promise<void>>()
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValue(undefined)
+    render(<BookingForm services={services} onSubmit={onSubmit} />)
+
+    fillValidForm()
+    fireEvent.click(screen.getByRole('button', { name: /create booking/i }))
+    await screen.findByText('Network error')
+
+    fillValidForm()
+    fireEvent.click(screen.getByRole('button', { name: /create booking/i }))
+
+    await waitFor(() => expect(screen.queryByText('Network error')).toBeNull())
+    expect(onSubmit).toHaveBeenCalledTimes(2)
   })
 })

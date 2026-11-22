@@ -1,8 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   bookingFormSchema,
-  toIsoFromLocal,
+  type BookingFormOutput,
   type BookingFormValues,
   type BookingInput,
   type Service,
@@ -19,8 +20,9 @@ export function BookingForm({ services, onSubmit }: BookingFormProps) {
     handleSubmit,
     reset,
     setError,
-    formState: { errors, isSubmitting },
-  } = useForm<BookingFormValues>({
+    clearErrors,
+    formState: { errors, isSubmitting, isSubmitSuccessful },
+  } = useForm<BookingFormValues, unknown, BookingFormOutput>({
     resolver: zodResolver(bookingFormSchema),
     defaultValues: {
       serviceId: '',
@@ -30,19 +32,18 @@ export function BookingForm({ services, onSubmit }: BookingFormProps) {
     },
   })
 
-  const submit = handleSubmit(async (values) => {
-    const input: BookingInput = {
-      serviceId: Number(values.serviceId),
-      customerName: values.customerName,
-      customerEmail: values.customerEmail,
-      startsAt: toIsoFromLocal(values.startsAt),
-    }
+  // Reset after the submit transition commits, not inside the submit handler.
+  useEffect(() => {
+    if (isSubmitSuccessful) reset()
+  }, [isSubmitSuccessful, reset])
 
+  const submit = handleSubmit(async (values) => {
+    clearErrors('root.serverError')
     try {
-      await onSubmit(input)
-      reset()
+      await onSubmit(values)
     } catch (cause) {
-      setError('root', {
+      setError('root.serverError', {
+        type: 'server',
         message: cause instanceof Error ? cause.message : 'Could not save the booking',
       })
     }
@@ -97,7 +98,7 @@ export function BookingForm({ services, onSubmit }: BookingFormProps) {
         {isSubmitting ? 'Saving…' : 'Create booking'}
       </button>
 
-      {errors.root && <p role="alert">{errors.root.message}</p>}
+      {errors.root?.serverError && <p role="alert">{errors.root.serverError.message}</p>}
     </form>
   )
 }

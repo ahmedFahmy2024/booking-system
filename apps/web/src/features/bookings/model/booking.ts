@@ -30,22 +30,24 @@ export interface BookingInput {
   startsAt: string
 }
 
-// Form values mirror the inputs (a <select> and <input type="datetime-local">
-// both produce strings). Submit maps them to the API-shaped BookingInput.
-export const bookingFormSchema = z.object({
-  serviceId: z.string().min(1, 'Choose a service'),
-  customerName: z.string().trim().min(1, 'Enter your name'),
-  customerEmail: z.string().trim().pipe(z.email('Enter a valid email')),
-  startsAt: z
-    .string()
-    .min(1, 'Choose a date and time')
-    .refine((value) => !Number.isNaN(new Date(value).getTime()), 'Choose a date and time'),
-})
-
-export type BookingFormValues = z.infer<typeof bookingFormSchema>
-
 export function toIsoFromLocal(value: string): string {
   if (!value) return ''
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '' : date.toISOString()
 }
+
+// The form holds raw input strings; the resolver yields API-shaped values.
+// Deriving both types from one schema keeps the form and the submit callback honest.
+export const bookingFormSchema = z.object({
+  serviceId: z.coerce.number().int().positive('Choose a service'),
+  customerName: z.string().trim().min(1, 'Enter your name'),
+  customerEmail: z.string().trim().pipe(z.email('Enter a valid email')),
+  startsAt: z
+    .string()
+    .min(1, 'Choose a date and time')
+    .refine((value) => !Number.isNaN(new Date(value).getTime()), 'Choose a date and time')
+    .transform(toIsoFromLocal),
+})
+
+export type BookingFormValues = z.input<typeof bookingFormSchema>
+export type BookingFormOutput = z.output<typeof bookingFormSchema>
