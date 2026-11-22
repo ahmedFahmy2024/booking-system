@@ -34,6 +34,8 @@ The agent loads a skill automatically when the task matches the **description** 
 | [`verify-booking-system`](../.agents/skills/verify-booking-system/SKILL.md) | Run the booking flow in Playwright and save frontend/API verification evidence. |
 | [`review-booking-change`](../.agents/skills/review-booking-change/SKILL.md) | Risk-based review of booking changes; verify findings before fixing them. |
 | [`deliver-booking-pr`](../.agents/skills/deliver-booking-pr/SKILL.md) | Prepare the PR description, open a draft when asked, and monitor CI until handoff. |
+| [`takeover-booking-work`](../.agents/skills/takeover-booking-work/SKILL.md) | Save a checkpoint or pick up unfinished work from another chat. |
+| [`review-booking-workflow`](../.agents/skills/review-booking-workflow/SKILL.md) | Find one reusable workflow improvement after observed rework or a stall. |
 
 ---
 

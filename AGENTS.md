@@ -7,3 +7,4 @@ This repository contains a React + Vite web app in `apps/web` and a Hono API in 
 - **Project skills.** Load the relevant [listed skills](docs/SKILLS.md). Check the [dependency inventory](docs/LIBRARIES.md) before adding a library.
 - **Booking behavior.** Use [`verify-booking-system`](.agents/skills/verify-booking-system/SKILL.md) for browser evidence.
 - **Risk and delivery.** Use [`review-booking-change`](.agents/skills/review-booking-change/SKILL.md) for changes that affect stored data or the web/API contract. Use [`deliver-booking-pr`](.agents/skills/deliver-booking-pr/SKILL.md) when asked to prepare a PR or monitor its CI.
+- **Handoff and friction.** Use [`takeover-booking-work`](.agents/skills/takeover-booking-work/SKILL.md) when pausing or resuming unfinished work. Use [`review-booking-workflow`](.agents/skills/review-booking-workflow/SKILL.md) after a task with repeated rework, a verification stall, or avoidable user intervention.

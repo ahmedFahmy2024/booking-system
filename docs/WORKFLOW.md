@@ -25,3 +25,8 @@
 - Review the diff against the criteria. For booking writes, schema, or the web/API contract, run [the risk-based review](../.agents/skills/review-booking-change/SKILL.md).
 - Use the [PR template](../.github/pull_request_template.md) to capture the visible result, exact commands and outcomes, evidence paths, and any unverified path. Include recovery for stored-data or deployment changes.
 - When asked to prepare or monitor a PR, use [the delivery skill](../.agents/skills/deliver-booking-pr/SKILL.md). The maintainer owns the merge.
+
+## Between sessions
+
+- When work pauses or moves to another chat, save or resume the checkpoint with [the takeover skill](../.agents/skills/takeover-booking-work/SKILL.md).
+- After repeated rework, a verification stall, or avoidable user intervention, use [the workflow review](../.agents/skills/review-booking-workflow/SKILL.md) to capture one reusable improvement and how to evaluate it.
