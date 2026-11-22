@@ -22,6 +22,11 @@
 | `hono-void` | فحص واختبار تطبيقات Void المبنية على Hono (صفحات، page actions، و API routes) باستخدام Hono CLI. |
 | `neon-drizzle` | إعداد Drizzle من الصفر على Neon أو إضافته لتطبيق موجود: تثبيت، إعداد الاتصال، توليد schema، وتشغيل migrations. |
 | `neon-postgres` | التعامل مع قاعدة بيانات Neon/Lakebase Postgres الموجودة: الاتصالات، migrations، branching، الفواتير، البحث (vector/full-text/hybrid). |
+| `tanstack-cli` | scaffolding لمشاريع TanStack Start بالـ integrations الجاهزة وخادم MCP (مش مستخدم في المشروع ده حالياً). |
+| `tanstack-config` | أدوات بناء ونشر حزم JavaScript/TypeScript (مش مستخدم في المشروع ده — مش بننشر package). |
+| `tanstack-devtools` | لوحة devtools موحّدة لـ Query و Router وغيرها، مع Vite plugin وإضافات قابلة للتوسيع. |
+| `tanstack-query` | إدارة server state: الـ fetching، الـ caching، الـ mutations، الـ queryOptions، والـ Suspense. |
+| `tanstack-router` | routing آمن النوع: file-based routes، loaders، search params، والدمج مع TanStack Query. |
 | `vite` | إعداد وضبط Vite: الـ config، الـ plugins، الـ SSR، وبناء المكتبات، وترقية Vite 8 إلى Rolldown. |
 | `vitest` | كتابة اختبارات بـ Vitest: الـ API، الـ mocking، الـ coverage، الـ filtering، والـ fixtures. |
 
@@ -124,7 +129,49 @@
   - البحث: vector search، full-text search، BM25، و hybrid search.
 - **تنبيه:** لو مفيش `DATABASE_URL` أو المشروع جديد، الـ skill بيقول ترجع للأب `neon` (مش مثبت هنا — ممكن تجيبه من `neon skills -s neon -y`). والـ auth يروح `neon-auth` والـ realtime يروح `neon-realtime`.
 
-### 9. `vite`
+### 9. `tanstack-cli`
+
+- **الوظيفة:** أداة scaffolding لإنشاء تطبيقات TanStack Start مع أكتر من 30 integration (Query، Drizzle، Neon، Clerk، ...)، وخادم MCP لمساعدة الـ agents، وقوالب مخصصة (custom templates).
+- **امتى تستخدمه:** إنشاء مشروع TanStack Start جديد أو تجهيز template للفريق.
+- **ملاحظة:** **مش مستخدم في المشروع ده** — الواجهة هنا React + Vite مش TanStack Start. لو احتجنا نعمل scaffold لمشروع جديد نستخدم `npx @tanstack/cli create <name> --integrations tanstack-query,...`.
+
+### 10. `tanstack-config`
+
+- **الوظيفة:** toolkit لبناء وتحديد إصدارات ونشر حزم JavaScript/TypeScript بجودة عالية.
+- **امتى تستخدمه:** إعداد package للنشر (build، versioning، publishing).
+- **ملاحظة:** **مش مستخدم في المشروع ده** — التطبيق مش حزمة بتتنشر على npm.
+
+### 11. `tanstack-devtools`
+
+- **الوظيفة:** لوحة devtools واحدة بتجمع Query و Router وإضافات تانية، مع نظام plugins و Vite plugin للإعداد التلقائي.
+- **امتى تستخدمه:**
+  - فحص حالة الـ Query cache والـ Router أثناء التطوير.
+  - إضافة plugin مخصص لتتبع حالة التطبيق.
+- **تفاصيل في المشروع ده:** `@tanstack/react-devtools` مع panel-ين: `ReactQueryDevtoolsPanel` و `TanStackRouterDevtoolsPanel`. بيظهروا في `development` فقط، و`@tanstack/devtools-vite` بيشيل كود الـ devtools من production build.
+
+### 12. `tanstack-query`
+
+- **الوظيفة:** إدارة الـ server state (البيانات اللي على الـ API): fetching، caching، background refetching، mutations، optimistic updates، و pagination/infinite queries.
+- **امتى تستخدمه:**
+  - استبدال `useState`/`useEffect` بتاعة جلب البيانات بـ `useQuery` / `useSuspenseQuery`.
+  - تعريف query keys و `queryOptions` المشتركة، وعمل invalidate بعد الـ mutations.
+  - أي تعديل على استراتيجية الـ caching (staleTime، gcTime، retry، refetch).
+- **نقاط مهمة في الإصدار الحالي (اتأكدنا من المصدر عبر opensrc):**
+  - `queryClient.ensureQueryData` و `queryClient.prefetchQuery` **deprecated** — استخدم `queryClient.query(options)` و `queryClient.query({ ...options, staleTime: 'static' })` على التوالي.
+  - استخدم `queryOptions` عشان الـ key والـ fn يتشاركوا بين `useSuspenseQuery` والـ loader.
+  - لازم `useQueryErrorResetBoundary().reset()` في الـ error component اللي بيستخدم suspense.
+
+### 13. `tanstack-router`
+
+- **الوظيفة:** routing آمن النوع تماماً: file-based routing، route loaders، search params validation، code splitting، وتكامل مع TanStack Query.
+- **امتى تستخدمه:**
+  - إضافة/تعديل route أو layout في `apps/web/src/app/routes/`.
+  - تعديل إعداد الروتر (preloading، scroll restoration، notFound، error components).
+  - دمج الروتر مع Query عبر الـ router context والـ loaders.
+- **تفاصيل في المشروع ده:** file-based routing مفعّل بـ `tanstackRouter()` في `vite.config.ts` (قبل `react()`)، مع `autoCodeSplitting: true`. الملف `src/app/routeTree.gen.ts` مولّد وممنوع التعديل عليه بإيد.
+- **الدمج مع Query:** الـ loader بينادي `queryClient.query({ ...options, staleTime: 'static' })` من الـ context، والمكوّن بيقرأ بنفس الـ `queryOptions` عبر `useSuspenseQuery`.
+
+### 14. `vite`
 
 - **الوظيفة:** إعداد وضبط Vite — الـ config، الـ plugin API، الـ SSR، بناء المكتبات، وترقية Vite 8 (اللي بيستخدم Rolldown و Oxc بدل esbuild + Rollup).
 - **امتى تستخدمه:**
@@ -135,7 +182,7 @@
   - الترقية إلى Vite 8 وفهم التغييرات.
 - **تفضيلات:** استخدم TypeScript (`vite.config.ts`) و ESM دايماً.
 
-### 10. `vitest`
+### 15. `vitest`
 
 - **الوظيفة:** إطار اختبار سريع مبني على Vite، متوافق مع Jest API، مدعوم بالـ TypeScript والـ ESM والـ JSX.
 - **امتى تستخدمه:**
@@ -155,8 +202,22 @@
 | جزء المشروع | الـ Skills المرتبطة |
 | --- | --- |
 | `apps/web` (React + Vite) | `vite`، `feature-sliced-design`، `vitest`، `agent-browser` لاختبار الواجهة |
+| Routing وبيانات الـ frontend | `tanstack-router`، `tanstack-query`، `tanstack-devtools` |
 | `apps/api` (Hono) | `hono`، و `drizzle` + `neon-drizzle` + `neon-postgres` لطبقة قاعدة البيانات |
 | قاعدة البيانات (Neon Postgres) | `neon-postgres` للإدارة والاستعلامات، `neon-drizzle` للإعداد والـ migrations |
 | اختبارات | `vitest` للوحدة، `agent-browser` للـ E2E/QA، Hono CLI (جوه `hono`) لاختبار الـ API |
+| مراجعة استخدام المكتبات | `opensrc` (أداة مش skill — شوف القسم اللي بعده) |
 
-أما `hono-jsx` و `hono-void` فهم **مش مستخدمين في الوضع الحالي**؛ بيتحملوا بس لو اتغير الـ frontend من React إلى `hono/jsx` أو لو دخلنا إطار Void.
+أما `hono-jsx` و `hono-void` فهم **مش مستخدمين في الوضع الحالي**؛ بيتحملوا بس لو اتغير الـ frontend من React إلى `hono/jsx` أو لو دخلنا إطار Void. وكمان `tanstack-cli` و `tanstack-config` مش مستخدمين لأننا مش بنعمل scaffold لـ TanStack Start ولا بننشر package.
+
+---
+
+## أداة مساعدة: opensrc
+
+`opensrc` مش skill، لكنه أداة لجلب مصدر أي package في الـ cache المحلي (`~/.opensrc/`) عشان نراجع الـ implementation والـ docs بتاعتها مش بس الـ types. القواعد الكاملة لاستخدامه في مراجعة الكود موجودة في [`AGENTS.md`](../AGENTS.md) تحت قسم **Source verification in code review (opensrc)**.
+
+```powershell
+opensrc path @tanstack/react-query
+opensrc path @tanstack/react-router
+# لو فشل الـ npm registry: opensrc path TanStack/query
+```

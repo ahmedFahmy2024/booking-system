@@ -4,7 +4,7 @@ import type { BookingInput } from './booking'
 import { useCreateBooking } from './useCreateBooking'
 
 export function useBookings() {
-  // The route loader already called ensureQueryData for both options, so
+  // The route loader already primed both queries via queryClient.query, so
   // these reads are synchronous from the cache on the first render.
   const bookingsQuery = useSuspenseQuery(bookingsQueries.list())
   const servicesQuery = useSuspenseQuery(bookingsQueries.services())
