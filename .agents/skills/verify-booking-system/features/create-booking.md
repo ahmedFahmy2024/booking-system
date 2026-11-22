@@ -10,11 +10,11 @@ A user submits a service, name, email, and date and time to save a booking.
 
 ## How to get to it (user POV)
 
-- Open `/` and use the `New booking` form.
+- Open `/` and use the `حجز جديد` form.
 
 ## Driving it with Playwright
 
-Run `npm --prefix apps/web run test:e2e -- --trace on` from the repository root. The spec selects `Service`, fills `Customer name`, `Email`, and `Date and time`, then clicks `Create booking`. The first POST returns 503. The spec checks the visible error, preserved fields, and absence of a list entry. The retry goes to Hono and the booking appears.
+Run `npm --prefix apps/web run test:e2e -- --trace on` from the repository root. The spec selects `الخدمة`, fills `اسم العميل`, `البريد الإلكتروني`, and `التاريخ والوقت بتوقيت جهازك`, then clicks `تأكيد الحجز`. The first POST returns 503. The spec checks the Arabic error, preserved fields, and absence of a list entry. The retry goes to Hono and the booking appears with a Cairo time.
 
 For changes to validation, submit the form with the affected field invalid and check its visible error. The existing `BookingForm.test.tsx` also exercises form validation.
 

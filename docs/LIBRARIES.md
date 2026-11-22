@@ -15,7 +15,17 @@ Versions were taken from `package.json` when this file was written. To verify a 
 | Library | Version | Where | When to use it (short version) |
 | --- | --- | --- | --- |
 | `react` | 19.3.1 | web | Building all UI components. |
+| `i18next` / `react-i18next` | ^27.2.4 / ^18.0.3 | web | UI messages, Arabic plurals, and React translation hooks. |
 | `react-dom` | 19.3.1 | web | Rendering the app into the DOM (`main.tsx`). |
+| `tailwindcss` | 4.3.5 | web | Tailwind CSS v4 utility styles (CSS-first config, no `tailwind.config.*`). |
+| `@tailwindcss/vite` | 4.3.5 | web | Vite plugin that compiles Tailwind v4 CSS. |
+| `shadcn` | 4.23.0 | web | shadcn/ui CLI and runtime styles; configured by `components.json`. |
+| `@base-ui/react` | 1.9.0 | web | Primitive library behind shadcn components (`base`, not `radix`). |
+| `cn` | 0.5.2 | web | `cn()` class-name merger used by generated components. |
+| `class-variance-authority` | 0.7.1 | web | `cva` for component variants. |
+| `lucide-react` | 1.77.0 | web | Icons for shadcn components. |
+| `tw-animate-css` | 1.4.0 | web | Animation utilities imported by the shadcn theme. |
+| `@fontsource-variable/geist` | 5.3.0 | web | Geist variable font selected by the shadcn preset. |
 | `@tanstack/react-router` | 1.170.46 | web | All routing, loaders, and search params. |
 | `@tanstack/react-query` | 5.108.2 | web | All API data: fetching/caching/mutations. |
 | `react-hook-form` | 7.92.0 | web | Form state, submission, and errors. |
@@ -229,6 +239,16 @@ Versions were taken from `package.json` when this file was written. To verify a 
 - **In this project:** `@types/node` is installed in both apps at slightly different versions (24 in web / 26 in api) — this is fine as long as typechecking passes.
 - **Rule:** Do not add `@types/*` for a library that ships its own types (e.g. Zod, Hono, TanStack).
 
+### F) Styling — Tailwind CSS v4 + shadcn/ui — `apps/web`
+
+Tailwind and shadcn/ui are installed and initialized in `apps/web` (not at the monorepo root):
+
+- **Config:** `apps/web/components.json` (`style: base-nova`, `base: base` → Base UI primitives, `tailwind.css: src/app/styles/index.css`, `rsc: false`). CSS variables, the `@theme inline` block, dark variant, and `@layer base` live in that same CSS file; there is no `tailwind.config.*`.
+- **Vite:** `@tailwindcss/vite` is registered in `vite.config.ts` after `react()`.
+- **TypeScript aliases:** `@/*` → `./src/*` is declared in both `tsconfig.app.json` and the root `tsconfig.json` (the shadcn CLI reads the latter). shadcn aliases in `components.json` point at `src/shared`: `@/shared/ui` for components, `@/shared/lib/utils` for `cn`, `@/shared/hooks` for hooks. Generated components land in `src/shared/ui/`, matching the FSD `shared/` layer.
+- **Rule:** Add UI with `npx shadcn@latest add <component>` from `apps/web` rather than hand-rolling styled markup. Prefer semantic tokens (`bg-primary`, `text-muted-foreground`) over raw colors, and the component's built-in variants/sizes over custom overrides. `npm run verify` from `apps/web` still lints, typechecks, tests, and builds the app.
+- **npm note:** If `npm` 11 reports `EALLOWSCRIPTS` while the shadcn CLI installs dependencies because a user/global `.npmrc` sets `allow-scripts`, run the CLI with a clean `npm_config_userconfig` instead of changing the project's dependencies by hand.
+
 ---
 
 ## How libraries map to this project's structure
@@ -246,6 +266,7 @@ As stated in [`AGENTS.md`](../AGENTS.md): React + Vite in `apps/web`, a Hono API
 | Unit tests | `vitest`, `@testing-library/react`, `jsdom` | Jest / Enzyme / happy-dom |
 | E2E tests | `@playwright/test` | Cypress / Puppeteer |
 | Build and quality | `vite`, `typescript`, `oxlint`, `tsx`, `dotenv` | Webpack / ESLint / ts-node |
+| Styling / UI components | `tailwindcss`, `@tailwindcss/vite`, `shadcn`, `@base-ui/react`, `cn` | hand-rolled CSS design systems, Radix or another component library |
 | UI animation | React 19.3 built-in `ViewTransition` / `addTransitionType` | third-party animation libraries without a reason |
 
 ---
@@ -262,7 +283,7 @@ Libraries and skills are linked: skills come from `.agents/skills` and are catal
 
 A skill being installed does **not** mean its library is installed:
 
-- `shadcn` and `tailwind-design-system` are present in `skills-lock.json`, but there is no `components.json`, no Tailwind dependency, and no shadcn component folder here. Styling is plain CSS under `apps/web/src/app/styles/`. Adopting either is a dependency/architecture decision — check this file and ask first.
+- `shadcn` and `tailwind-design-system` are installed in `apps/web`: `components.json` exists, Tailwind v4 + shadcn components live under `apps/web/src/app/styles/` and `apps/web/src/shared/ui/`. See section F for the setup and rules.
 - `vercel-react-view-transitions` needs no new package: React 19.3.1 already ships `<ViewTransition>` and `addTransitionType`. Browser support is Chromium 125+, Firefox 144+, Safari 18.2+, with graceful degradation.
 - `vercel-composition-patterns` and `vercel-react-best-practices` are advisory. Their Next.js/SWR/RSC rules do not apply to this React + Vite + TanStack Query app; where they conflict with this repository's conventions, [`AGENTS.md`](../AGENTS.md) and this file win.
 

@@ -5,6 +5,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { RouterProvider } from '@tanstack/react-router'
 import { useState } from 'react'
 import { createAppRouter } from '../router'
+import { LocaleProvider } from './locale/locale-provider'
 import { createQueryClient } from './query-client'
 
 export function AppProviders() {
@@ -13,24 +14,26 @@ export function AppProviders() {
   const [router] = useState(() => createAppRouter(queryClient))
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-      {import.meta.env.MODE === 'development' && (
-        <TanStackDevtools
-          plugins={[
-            {
-              id: 'react-query',
-              name: 'React Query',
-              render: () => <ReactQueryDevtoolsPanel />,
-            },
-            {
-              id: 'router',
-              name: 'Router',
-              render: () => <TanStackRouterDevtoolsPanel router={router} />,
-            },
-          ]}
-        />
-      )}
-    </QueryClientProvider>
+    <LocaleProvider>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+        {import.meta.env.MODE === 'development' && (
+          <TanStackDevtools
+            plugins={[
+              {
+                id: 'react-query',
+                name: 'React Query',
+                render: () => <ReactQueryDevtoolsPanel />,
+              },
+              {
+                id: 'router',
+                name: 'Router',
+                render: () => <TanStackRouterDevtoolsPanel router={router} />,
+              },
+            ]}
+          />
+        )}
+      </QueryClientProvider>
+    </LocaleProvider>
   )
 }

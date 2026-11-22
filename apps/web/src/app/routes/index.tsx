@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { BookingsPage, bookingsQueries } from '@/pages/bookings'
 import { RouteError } from '../ui/route-error'
+import { RoutePending } from '../ui/root-layout'
 
 export const Route = createFileRoute('/')({
   // `queryClient.query` replaced the deprecated ensureQueryData/prefetchQuery.
@@ -11,7 +12,7 @@ export const Route = createFileRoute('/')({
       queryClient.query({ ...bookingsQueries.list(), staleTime: 'static' }),
       queryClient.query({ ...bookingsQueries.services(), staleTime: 'static' }),
     ]),
-  pendingComponent: () => <p>Loading…</p>,
+  pendingComponent: RoutePending,
   errorComponent: RouteError,
   component: BookingsPage,
 })

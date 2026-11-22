@@ -1,4 +1,5 @@
 import { fileURLToPath, URL } from 'node:url'
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { devtools } from '@tanstack/devtools-vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
@@ -16,6 +17,7 @@ export default defineConfig({
       semicolons: false,
     }),
     react(),
+    tailwindcss(),
     devtools(),
   ],
   resolve: {

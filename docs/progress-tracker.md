@@ -9,7 +9,7 @@ Status follows the [build plan](build-plan.md). Update this file when a slice is
 | B0 | Implemented | The generic prototype has a booking form and list, a service catalogue, Hono endpoints, and a Drizzle migration. It saves a service and a requested time. |
 | B1 | Complete | The user approved the launch scope, booking rules, and operating policies. The [phase checklists](build-plan.md#phase-checklists) are ready for implementation. |
 | B2 | Next | Staff sign-in, customer booking access, and API authorization. The prototype list exposes contact details without an access check. |
-| B3 | Planned | Film catalogue, auditoriums, seats, published showtimes, and seat-map reads. |
+| B3 | Partial | Arabic localization and RTL are wired into the current web shell. Film catalogue, auditoriums, seats, published showtimes, and seat-map reads remain. |
 | B4 | Planned | Multi-seat booking and confirmation, atomic seat claims, and retry behavior. B0 covers only generic booking persistence. |
 | B5 | Planned | Guest booking retrieval, guest and staff cancellation, and admin showtime cancellation. |
 | B6 | Planned | Show occupancy and staff booking management, including an activity record. |
@@ -20,9 +20,9 @@ Status follows the [build plan](build-plan.md). Update this file when a slice is
 
 | Area | Evidence | Scope and latest check |
 | --- | --- | --- |
-| Web | `npm --prefix apps/web run verify` | Passed locally on 2026-11-22, including five Vitest tests. |
+| Web | `npm --prefix apps/web run verify` | Passed locally on 2026-11-22, including seven Vitest tests and Arabic locale behavior. |
 | API | `npm --prefix apps/api run verify` | Passed locally on 2026-11-22, including four Vitest tests. The route suite mocks the database. |
-| Booking journey | [Playwright scenario](../apps/web/e2e/booking.spec.ts) | Covers a simulated failure before the write, a successful retry, and one matching booking after reload. Test discovery passed on 2026-11-22. Live browser execution was outside this baseline check. |
+| Booking journey | [Playwright scenario](../apps/web/e2e/booking.spec.ts) | Passed in Chromium on 2026-11-22 using the isolated database. Covers Arabic RTL, failure before the write, a successful retry, one matching booking after reload, and Cairo time displayed from a UTC browser. |
 | Delivery workflow | [CI](../.github/workflows/ci.yml) and [workflow](WORKFLOW.md) | Web and API checks, advisory React Doctor on PRs, and an on-demand Playwright job using an isolated test database. |
 
 ## Next action

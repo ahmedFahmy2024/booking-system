@@ -1,8 +1,12 @@
 import { useQueryErrorResetBoundary } from '@tanstack/react-query'
-import { useRouter, type ErrorComponentProps } from '@tanstack/react-router'
+import { useRouter } from '@tanstack/react-router'
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Alert, AlertAction, AlertTitle } from '@/shared/ui/alert'
+import { Button } from '@/shared/ui/button'
 
-export function RouteError({ error }: ErrorComponentProps) {
+export function RouteError() {
+  const { t } = useTranslation('common')
   const router = useRouter()
   const queryErrorResetBoundary = useQueryErrorResetBoundary()
 
@@ -12,9 +16,13 @@ export function RouteError({ error }: ErrorComponentProps) {
   }, [queryErrorResetBoundary])
 
   return (
-    <div role="alert">
-      <p>{error instanceof Error ? error.message : String(error)}</p>
-      <button onClick={() => router.invalidate()}>Retry</button>
-    </div>
+    <Alert variant="destructive">
+      <AlertTitle>{t('pageLoadError')}</AlertTitle>
+      <AlertAction>
+        <Button variant="outline" size="sm" onClick={() => router.invalidate()}>
+          {t('retry')}
+        </Button>
+      </AlertAction>
+    </Alert>
   )
 }

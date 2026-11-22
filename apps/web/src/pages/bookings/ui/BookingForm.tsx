@@ -1,6 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import { Alert, AlertDescription } from '@/shared/ui/alert'
+import { Button } from '@/shared/ui/button'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/shared/ui/card'
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/shared/ui/field'
+import { Input } from '@/shared/ui/input'
+import { NativeSelect, NativeSelectOption } from '@/shared/ui/native-select'
+import { Spinner } from '@/shared/ui/spinner'
 import {
   bookingFormSchema,
   type BookingFormOutput,
@@ -15,6 +23,7 @@ type BookingFormProps = {
 }
 
 export function BookingForm({ services, onSubmit }: BookingFormProps) {
+  const { t } = useTranslation('bookings')
   const {
     register,
     handleSubmit,
@@ -41,64 +50,86 @@ export function BookingForm({ services, onSubmit }: BookingFormProps) {
     clearErrors('root.serverError')
     try {
       await onSubmit(values)
-    } catch (cause) {
-      setError('root.serverError', {
-        type: 'server',
-        message: cause instanceof Error ? cause.message : 'Could not save the booking',
-      })
+    } catch {
+      setError('root.serverError', { type: 'server' })
     }
   })
 
   return (
-    <form className="booking-form" onSubmit={submit} noValidate>
-      <h2>New booking</h2>
+    <form onSubmit={submit} noValidate>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('newBooking')}</CardTitle>
+        </CardHeader>
 
-      <label htmlFor="serviceId">Service</label>
-      <select
-        id="serviceId"
-        {...register('serviceId')}
-        aria-invalid={Boolean(errors.serviceId)}
-      >
-        <option value="">Select a service</option>
-        {services.map((service) => (
-          <option key={service.id} value={service.id}>
-            {service.name} ({service.durationMinutes} min)
-          </option>
-        ))}
-      </select>
-      {errors.serviceId && <span role="alert">{errors.serviceId.message}</span>}
+        <CardContent>
+          <FieldGroup>
+            <Field data-invalid={Boolean(errors.serviceId)}>
+              <FieldLabel htmlFor="serviceId">{t('service')}</FieldLabel>
+              <NativeSelect
+                id="serviceId"
+                aria-invalid={Boolean(errors.serviceId)}
+                {...register('serviceId')}
+              >
+                <NativeSelectOption value="">{t('selectService')}</NativeSelectOption>
+                {services.map((service) => (
+                  <NativeSelectOption key={service.id} value={service.id}>
+                    {t('serviceOption', { name: service.name, count: service.durationMinutes })}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+              {errors.serviceId && <FieldError>{t('missingService')}</FieldError>}
+            </Field>
 
-      <label htmlFor="customerName">Customer name</label>
-      <input
-        id="customerName"
-        {...register('customerName')}
-        aria-invalid={Boolean(errors.customerName)}
-      />
-      {errors.customerName && <span role="alert">{errors.customerName.message}</span>}
+            <Field data-invalid={Boolean(errors.customerName)}>
+              <FieldLabel htmlFor="customerName">{t('customerName')}</FieldLabel>
+              <Input
+                id="customerName"
+                dir="auto"
+                aria-invalid={Boolean(errors.customerName)}
+                {...register('customerName')}
+              />
+              {errors.customerName && <FieldError>{t('missingName')}</FieldError>}
+            </Field>
 
-      <label htmlFor="customerEmail">Email</label>
-      <input
-        id="customerEmail"
-        type="email"
-        {...register('customerEmail')}
-        aria-invalid={Boolean(errors.customerEmail)}
-      />
-      {errors.customerEmail && <span role="alert">{errors.customerEmail.message}</span>}
+            <Field data-invalid={Boolean(errors.customerEmail)}>
+              <FieldLabel htmlFor="customerEmail">{t('email')}</FieldLabel>
+              <Input
+                id="customerEmail"
+                type="email"
+                dir="ltr"
+                aria-invalid={Boolean(errors.customerEmail)}
+                {...register('customerEmail')}
+              />
+              {errors.customerEmail && <FieldError>{t('invalidEmail')}</FieldError>}
+            </Field>
 
-      <label htmlFor="startsAt">Date and time</label>
-      <input
-        id="startsAt"
-        type="datetime-local"
-        {...register('startsAt')}
-        aria-invalid={Boolean(errors.startsAt)}
-      />
-      {errors.startsAt && <span role="alert">{errors.startsAt.message}</span>}
+            <Field data-invalid={Boolean(errors.startsAt)}>
+              <FieldLabel htmlFor="startsAt">{t('dateAndTime')}</FieldLabel>
+              <Input
+                id="startsAt"
+                type="datetime-local"
+                aria-invalid={Boolean(errors.startsAt)}
+                {...register('startsAt')}
+              />
+              {errors.startsAt && <FieldError>{t('invalidDate')}</FieldError>}
+            </Field>
+          </FieldGroup>
 
-      <button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? 'Saving…' : 'Create booking'}
-      </button>
+          {errors.root?.serverError && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertDescription>{t('saveError')}</AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
 
-      {errors.root?.serverError && <p role="alert">{errors.root.serverError.message}</p>}
+        <CardFooter>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Spinner data-icon="inline-start" />}
+            {isSubmitting ? t('saving') : t('createBooking')}
+          </Button>
+        </CardFooter>
+      </Card>
     </form>
   )
 }

@@ -39,13 +39,13 @@ export function toIsoFromLocal(value: string): string {
 // The form holds raw input strings; the resolver yields API-shaped values.
 // Deriving both types from one schema keeps the form and the submit callback honest.
 export const bookingFormSchema = z.object({
-  serviceId: z.coerce.number().int().positive('Choose a service'),
-  customerName: z.string().trim().min(1, 'Enter your name'),
-  customerEmail: z.string().trim().pipe(z.email('Enter a valid email')),
+  serviceId: z.coerce.number().int().positive(),
+  customerName: z.string().trim().min(1),
+  customerEmail: z.string().trim().pipe(z.email()),
   startsAt: z
     .string()
-    .min(1, 'Choose a date and time')
-    .refine((value) => !Number.isNaN(new Date(value).getTime()), 'Choose a date and time')
+    .min(1)
+    .refine((value) => !Number.isNaN(new Date(value).getTime()))
     .transform(toIsoFromLocal),
 })
 

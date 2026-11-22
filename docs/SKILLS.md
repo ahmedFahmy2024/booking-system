@@ -33,8 +33,8 @@ The agent loads a skill automatically when the task matches the **description** 
 | `vite` | Vite configuration: config, plugins, SSR, library builds, and the Vite 8 Rolldown migration. |
 | `vitest` | Writing tests with Vitest: API, mocking, coverage, filtering, fixtures. |
 | `react-hook-form` | Building and optimizing client-side forms with `useForm`, `useWatch`, `useController`, `useFieldArray`, and validation integration. |
-| `shadcn` | Adding/searching/fixing shadcn components, registries, presets, and design systems from `DESIGN.md` (not installed in this project). |
-| `tailwind-design-system` | Tailwind CSS v4 design tokens, CSS-first config, component variants, and responsive patterns (not installed in this project). |
+| `shadcn` | Adding/searching/fixing shadcn components, registries, presets, and design systems from `DESIGN.md` (installed in `apps/web`). |
+| `tailwind-design-system` | Tailwind CSS v4 design tokens, CSS-first config, component variants, and responsive patterns (installed in `apps/web`). |
 | `zod` | Zod schema validation best practices: type safety, parsing, error handling, `z.infer`. |
 | [`verify-booking-system`](../.agents/skills/verify-booking-system/SKILL.md) | Run the booking flow in Playwright and save frontend/API verification evidence. |
 | [`review-booking-change`](../.agents/skills/review-booking-change/SKILL.md) | Risk-based review of booking changes; verify findings before fixing them. |
@@ -229,14 +229,14 @@ The agent loads a skill automatically when the task matches the **description** 
 - **What it does:** A framework for building UI and design systems where components are added as source code via the CLI. Covers registries, presets, `components.json`, theming, and chat primitives.
 - **When to use it:** Adding, searching, fixing, composing, or theming shadcn components — including `shadcn init`, `--preset` codes, applying a `DESIGN.md`, or working in a repo that has `components.json`.
 - **Key rules:** Use the project's package runner (here `npx shadcn@latest ...`); check installed components and `search` registries before writing custom UI; run `npx shadcn@latest docs <component>` and fetch the URLs before creating/fixing a component; never decode preset codes by hand; never use `--overwrite` without explicit approval; ask which registry to use when the user does not name one.
-- **In this project:** **Not installed** — there is no `components.json`, Tailwind, or shadcn component directory, and the UI uses plain CSS in `app/styles/`. Adopting it is a dependency/architecture decision: check [`LIBRARIES.md`](LIBRARIES.md) and ask first. The skill only becomes routine once a shadcn project is actually in the checkout.
+- **In this project:** Installed in `apps/web`. `components.json` uses `style: base-nova`, `base: base` (Base UI), `rsc: false`, and points aliases at `src/shared` (`@/shared/ui`, `@/shared/lib/utils`, `@/shared/hooks`). The theme lives in `src/app/styles/index.css` beside Tailwind v4; components are in `src/shared/ui/` (`button`, `field`, `input`, `native-select`, `alert`, `card`, `badge`, `empty`, `skeleton`, `spinner`, plus `label`/`separator` as dependencies). The bookings screen uses them instead of plain CSS. Run every shadcn command from `apps/web` and add new components with `npx shadcn@latest add <component>`. See section F of [`LIBRARIES.md`](LIBRARIES.md).
 
 ### 19. `tailwind-design-system`
 
 - **What it does:** Building scalable design systems with Tailwind CSS v4: CSS-first configuration via `@theme`, semantic tokens (OKLCH), dark mode variants, component variants, responsive patterns, and accessibility.
 - **When to use it:** Creating a component library or design system, defining design tokens/theming, standardizing UI patterns, or migrating Tailwind v3 → v4.
 - **Key rules:** v4 uses `@import "tailwindcss"` and `@theme { --color-*: ... }` rather than `tailwind.config.ts` and `theme.extend`; use semantic tokens, not raw color values; always include reduced-motion handling.
-- **In this project:** **Not installed** — Tailwind is not in either `package.json`, and global CSS lives in `apps/web/src/app/styles/`. Do not introduce Tailwind to use this skill; check [`LIBRARIES.md`](LIBRARIES.md) and ask first. See also the `shadcn` skill, which assumes Tailwind in the target project.
+- **In this project:** Tailwind CSS v4 is installed in `apps/web` with the `@tailwindcss/vite` plugin; global CSS and the `@theme inline` variables live in `apps/web/src/app/styles/index.css`. Preference: semantic tokens over raw color values, `@custom-variant dark` for class-based dark mode, and reduced-motion handling. See section F of [`LIBRARIES.md`](LIBRARIES.md); the `shadcn` skill consumes these tokens.
 
 ### 20. `vercel-composition-patterns`
 
@@ -284,11 +284,11 @@ As stated in [`AGENTS.md`](../AGENTS.md): React + Vite in `apps/web`, a Hono API
 | Database (Neon Postgres) | `neon-postgres` for management and queries, `neon-drizzle` for setup and migrations |
 | Testing | `vitest` for unit tests, `agent-browser` for manual/E2E QA, Hono CLI (inside `hono`) for API testing |
 | React composition, performance, animation | `vercel-composition-patterns`, `vercel-react-best-practices`, `vercel-react-view-transitions` (advisory; project rules win) |
-| UI component systems | `shadcn`, `tailwind-design-system` — **not installed**; adoption needs a decision first |
+| UI component systems | `shadcn`, `tailwind-design-system` — installed in `apps/web` (Tailwind v4 + base/nova) |
 | Handoff and workflow | `takeover-booking-work` for checkpoints, `review-booking-workflow` for retrospectives, `deliver-booking-pr` for PR/CI |
 | Library usage review | `opensrc` (a tool, not a skill — see the next section) |
 
-`hono-jsx` and `hono-void` are **not used in the current setup**; they load only if the frontend switches from React to `hono/jsx` or we adopt Void. `tanstack-cli` and `tanstack-config` are also unused because we are not scaffolding TanStack Start or publishing a package. `shadcn` and `tailwind-design-system` are likewise dormant until their packages exist in the checkout — their presence in `skills-lock.json` only means the skill is installed, not that the library is. The three `vercel-*` skills are reference guidance, not a mandate to change stack: Next.js/SWR-specific rules do not apply here and this project's conventions in [`AGENTS.md`](../AGENTS.md) and [`LIBRARIES.md`](LIBRARIES.md) take precedence.
+`hono-jsx` and `hono-void` are **not used in the current setup**; they load only if the frontend switches from React to `hono/jsx` or we adopt Void. `tanstack-cli` and `tanstack-config` are also unused because we are not scaffolding TanStack Start or publishing a package. `shadcn` and `tailwind-design-system` are now active in `apps/web` — their packages are in `apps/web/package.json` and `components.json` exists. The three `vercel-*` skills are reference guidance, not a mandate to change stack: Next.js/SWR-specific rules do not apply here and this project's conventions in [`AGENTS.md`](../AGENTS.md) and [`LIBRARIES.md`](LIBRARIES.md) take precedence.
 
 ---
 

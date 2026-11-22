@@ -14,8 +14,8 @@ describe('App', () => {
   it('renders the booking screen with the service catalogue', async () => {
     render(<App />)
 
-    expect(await screen.findByRole('heading', { name: /cinema bookings/i })).toBeDefined()
-    expect(await screen.findByRole('option', { name: /standard screening/i })).toBeDefined()
-    expect(screen.getByRole('button', { name: /create booking/i })).toBeDefined()
+    expect(await screen.findByRole('heading', { name: 'حجوزات السينما' })).toBeDefined()
+    expect(await screen.findByRole('option', { name: 'Standard Screening (١٢٠ دقيقة)' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'تأكيد الحجز' })).toBeDefined()
   })
 })
