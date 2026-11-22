@@ -1,4 +1,4 @@
-export { Bookings } from './ui/Bookings'
+export { BookingsPage } from './ui/BookingsPage'
 export { bookingsKeys, bookingsQueries } from './api/bookings.queries'
 export { useCreateBooking } from './model/useCreateBooking'
 export type {

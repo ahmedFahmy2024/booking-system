@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Bookings, bookingsQueries } from '@/features/bookings'
+import { BookingsPage, bookingsQueries } from '@/pages/bookings'
 import { RouteError } from '../ui/route-error'
 
 export const Route = createFileRoute('/')({
@@ -13,5 +13,5 @@ export const Route = createFileRoute('/')({
     ]),
   pendingComponent: () => <p>Loading…</p>,
   errorComponent: RouteError,
-  component: Bookings,
+  component: BookingsPage,
 })

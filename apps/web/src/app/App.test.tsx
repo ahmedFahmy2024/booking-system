@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 
-vi.mock('@/features/bookings/api/bookings', () => ({
+vi.mock('@/pages/bookings/api/bookings', () => ({
   listBookings: vi.fn().mockResolvedValue([]),
   listServices: vi
     .fn()

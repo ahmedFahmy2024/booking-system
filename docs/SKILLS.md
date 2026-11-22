@@ -69,6 +69,7 @@
   - نقل مشروع من FSD v2.0 أو من هيكل مش FSD، أو دمج FSD مع Vite/React Router/Next/Nuxt.
   - تطبيق أنماط شائعة زي الـ authentication و API layer و Redux و TanStack Query جوه FSD.
 - **القاعدة الذهبية:** "ابدأ بسيط واستخرج الكود عند الحاجة" — الكود يروح `pages/` أولاً، ومفيش استخراج إلا لما نفس الكود مستخدم في أكتر من مكان دلوقتي، وليه سبب تغيير مستقل، وله مسؤولية واضحة.
+- **التطبيق في المشروع ده:** بنمشي على الحد الأدنى `app/` + `pages/` + `shared/`. شاشة الحجوزات في `pages/bookings` (لأن ليها مستهلك واحد بس)، ومفيش `features/` أو `entities/` أو `widgets/` ولا مجلد `assets` عام. ملفات الـ route في `app/routes/` adapters رقيقة بتفوّض الـ page عبر الـ public API.
 
 ### 4. `hono`
 

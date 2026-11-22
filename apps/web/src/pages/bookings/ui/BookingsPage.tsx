@@ -3,7 +3,7 @@ import { BookingForm } from './BookingForm'
 import { BookingList } from './BookingList'
 import './bookings.css'
 
-export function Bookings() {
+export function BookingsPage() {
   const { bookings, services, addBooking } = useBookings()
 
   return (

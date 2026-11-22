@@ -1,5 +1,5 @@
 import { AppProviders } from './providers/app-providers'
-import './App.css'
+import './styles/App.css'
 
 export default function App() {
   return <AppProviders />
