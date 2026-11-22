@@ -1,8 +1,6 @@
-import { Bookings } from '@/features/bookings'
+import { AppProviders } from './providers/app-providers'
 import './App.css'
 
-function App() {
-  return <Bookings />
+export default function App() {
+  return <AppProviders />
 }
-
-export default App
