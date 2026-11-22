@@ -47,6 +47,58 @@ Build a first working cinema journey across B2–B4, then expand with B5–B7. B
 - Admins can cancel a showtime with bookings. The system keeps the booking history and notifies affected guests. If the venue changes the time or auditorium after a booking exists, cancel the original showtime and publish a new one. Guests book their seats again.
 - Admins enter film data manually and configure seat maps by numbered rows and seats, with aisles and out-of-service seats. Film imports and a drag-and-drop layout editor are deferred.
 
+## Approved implementation decisions
+
+D1–D8 were approved on 2026-11-22. Use them with the launch, booking, and operating rules above and the [permission matrix](permission-matrix.md). Each phase lists the decisions it implements.
+
+### D1 — Staff sign-in and provisioning
+
+- Use Better Auth with Hono, Drizzle, and Neon. Serve the browser and API from the same origin, with auth under `/api/auth` and staff pages under `/staff`. Use secure, HTTP-only session cookies in production. [Hono integration](https://better-auth.com/docs/integrations/hono)
+- Bootstrap the first admin using a one-time server command. An admin provisions later staff members and sends a one-time email link to set their password. A link expires after 24 hours. Staff sign in with email and password and can request an email password reset. Guest bookings create no account.
+- Check the active staff role on protected API requests. Sign-out, deactivation, and a password reset revoke the relevant sessions. Apply the existing self-removal and last-active-admin rules in the permission matrix within the same write that changes the account.
+
+### D2 — Guest link and checkout access
+
+- Generate an opaque booking reference for customer support. Send a separate, unguessable private credential by email. Store a verifier for that credential and scope it to one booking. It expires exactly seven days after the showtime start.
+- Opening the link is read-only. Cancellation requires an explicit confirmation and a write request. Keep the credential out of logs and referrers. Invalid, expired, and wrong-booking credentials get the same generic response.
+- Staff resend the same unexpired link to the recorded email. Keep the credential encrypted where it must be recoverable for delivery. A resend never extends expiry. Rate-limit public checkout and guest-link attempts. Use generic responses where an endpoint could reveal private booking data.
+
+### D3 — Films, seat maps, and showtimes
+
+- Admins enter title, duration in minutes, synopsis, and an optional poster URL. Customers browse published upcoming showtimes. Draft and cancelled showtimes cannot accept bookings; an upcoming showtime whose booking window closed can still show its time.
+- Build a grid editor for row labels, seat numbers, aisle gaps, and out-of-service seats. Capture the auditorium's layout when publishing a showtime. Edits affect future showtimes. With bookings on a showtime, preserve its auditorium, time, and seat labels throughout its history.
+- Schedule in Cairo time and persist the instant as a timezone-aware timestamp. An auditorium is occupied from the showtime start through film duration plus a 15-minute turnaround. The next showtime can start exactly when that interval ends. Enforce overlaps even for simultaneous publish attempts.
+
+### D4 — Booking, prices, and retries
+
+- Guests select seats from one showtime and provide their email. Treat the six-seat default as a configurable cinema-wide maximum. Selection makes no hold. The server confirms only a published showtime before its 15-minute cutoff and claims all selected seats together.
+- Store prices in integer piastres and snapshot the confirmed unit price and total. A price or availability conflict returns a clear reason and current details. Keep any seats still available in the selection and require confirmation of the revised total if the price changed.
+- Use a stable idempotency key for each confirmation attempt. The same key and payload identify the same booking through a lost response. A reused key with a different payload returns a conflict. Retain successful keys with their bookings. Use a Drizzle Neon connection that supports interactive transactions for operations that require them, and enforce seat and auditorium invariants in Postgres. [Drizzle and Neon](https://orm.drizzle.team/docs/connect-neon)
+
+### D5 — Cancellation, attendance, and venue payments
+
+- Treat the two-hour guest cutoff and the 15-minute online cutoff as closing instants in Cairo time. The action is refused at the exact cutoff and after it. Operations staff can cancel on request before showtime start, with a recorded reason.
+- Keep booking status, arrival, and venue payment distinct. Start confirmed, unpaid, and not arrived. Record arrival and payment independently with timestamps and actor attribution. Staff can mark a confirmed booking as a no-show at or after start only when no arrival has been recorded.
+- Admins can cancel an upcoming showtime with a reason. In one operation, close bookings for that showtime and cancel its active bookings while preserving history and recorded payments. Staff handle any venue payment adjustments outside the website for this release. Cancellation requests and racing confirmations must leave consistent state.
+
+### D6 — Email delivery
+
+- Use Resend with a verified sender domain in production and a local or test mail adapter for development and CI. Send Arabic confirmations, staff account setup and reset messages, and showtime cancellation emails. [Resend domains](https://resend.com/docs/dashboard/domains/introduction)
+- Record outgoing messages durably in Postgres and deliver them after the booking or cancellation commits. Use stable delivery IDs for automatic retries, track delivery status and failures, and let staff trigger a separate resend. An email or retry failure leaves the booking and seats intact. Treat provider acceptance and delivery as different statuses. [Resend idempotency](https://resend.com/docs/dashboard/emails/idempotency-keys)
+
+### D7 — Web behavior and records
+
+- Use Egyptian Arabic and RTL for the initial customer and staff screens. Keep the established i18next page namespaces, existing React/Vite layout, and API identifiers. Treat a seat's physical position and label as auditorium data when rendering the map.
+- Use the home page for films and upcoming showtimes, a showtime page for seat selection and checkout, and a guest booking page for retrieval and cancellation. Keep checkout on one page and show a confirmation screen with the reference and venue payment instructions. Show clear empty, sold-out, closed, and failed-request states.
+- Build paginated staff booking search and filters by reference, film, showtime, and status. Default to upcoming showtimes. Record staff actions that change a booking, delivery, staff access, or showtime with actor, time, and outcome.
+- Use 90 days after showtime as the configurable guest contact retention default. Remove guest email and related link credentials after it expires while keeping non-contact booking history and operational audit records. Confirm the production retention setting with the venue owner before launch.
+
+### D8 — Release and execution defaults
+
+- Target a single always-on Node 24 web service on Render with Neon Postgres. Serve the built Vite app and Hono API on one HTTPS domain. Keep development, staging, and production databases separate. CI verifies changes, and production deploys with an explicit release approval. [Render web services](https://render.com/docs/web-services)
+- Verify migration and restore in staging, check readiness and booking and email failures, and keep operational logs free of guest links and contact details. Production domain, sender verification, service credentials, and release approval are provisioning inputs. The code and staging workflows use configuration while those inputs are pending.
+- Start each task from its approved decisions. Choose reversible details such as file names, component composition, and query names using the existing [code standards](code-standards.md). Record new decisions with user-visible, access, or data effects in this plan. Escalate only when a new requirement conflicts with approved rules or an external action requires authorization.
+
 ## Phase checklists
 
 Mark a task complete when its stated behavior is implemented and its relevant check has passed. Use the [progress tracker](progress-tracker.md) for the result and evidence.
@@ -66,29 +118,37 @@ Mark a task complete when its stated behavior is implemented and its relevant ch
 
 ### B2 — Identity and access
 
-- [ ] **B2.1** Define the admin and operations permission matrix, including staff provisioning and removal.
-- [ ] **B2.2** Add staff sign-in, sign-out, and session handling for the staff area.
+Applies [D1](#d1--staff-sign-in-and-provisioning) and [D2](#d2--guest-link-and-checkout-access).
+
+- [x] **B2.1** Define the admin and operations permission matrix, including staff provisioning and removal.
+- [ ] **B2.2** Set up Better Auth with Hono and Drizzle. Implement first-admin bootstrap, staff invitation and password reset, sign-in, sign-out, and sessions. Add a local mail adapter to verify the 24-hour invitation limit and session revocation.
 - [ ] **B2.3** Enforce permissions in the Hono API, including the booking list. Verify unauthenticated, operations, and admin requests against the matrix.
 - [ ] **B2.4** Add private booking-link credentials scoped to one booking, valid through seven days after its showtime. Verify invalid, expired, and wrong-booking credentials, and reference-only requests.
 
 ### B3 — Films, auditoriums, and showtimes
 
+Applies [D3](#d3--films-seat-maps-and-showtimes) and [D7](#d7--web-behavior-and-records).
+
 - [ ] **B3.1** Add the Drizzle schema and migration for films, auditoriums, seats, and showtimes. Rehearse on an isolated database with existing prototype rows and record how they are handled.
 - [ ] **B3.2** Build admin screens to enter film details and configure numbered seat rows, aisles, and out-of-service seats.
-- [ ] **B3.3** Add showtime creation, pricing, and publishing. Reject overlapping showtimes in one auditorium, including simultaneous admin submissions. Allow screenings in different auditoriums at the same time.
+- [ ] **B3.3** Add showtime creation, pricing, and publishing with a seating snapshot. Reject overlapping same-auditorium showtimes, including the 15-minute turnaround and simultaneous publish attempts. Allow simultaneous screenings in separate auditoriums.
 - [ ] **B3.4** Build the public Arabic RTL film catalogue, showtime list with Cairo time, and seat map for a published showtime. Expose labelled seats and availability through keyboard and screen-reader controls.
 - [ ] **B3.5** Seed an isolated film, auditorium, and showtime for repeatable verification. Exercise the staff publish and customer browse paths, including a showtime with no available seats.
 
 ### B4 — Seat selection and confirmation
 
+Applies [D2](#d2--guest-link-and-checkout-access), [D4](#d4--booking-prices-and-retries), and [D7](#d7--web-behavior-and-records).
+
 - [ ] **B4.1** Build multi-seat selection, show the EGP unit price and total, and collect the guest email. Enforce the configured seat limit, defaulting to six.
 - [ ] **B4.2** Claim all seats together at confirmation. Verify the showtime, auditorium, availability, accepted price, quantity, and 15-minute booking cutoff on the server.
 - [ ] **B4.3** Refresh availability when a seat is taken and keep the available selections. When a price changes before confirmation, show the revised total and ask the guest to confirm it.
 - [ ] **B4.4** Persist the quoted price and booking reference. Show the film, showtime, auditorium, seat labels, and venue payment instructions on confirmation.
-- [ ] **B4.5** Make retrying the same confirmation after a lost response return the original outcome without creating a second booking.
+- [ ] **B4.5** Persist the confirmation idempotency key with the booking. Replay the original outcome for the same request, and return a conflict when the same key is reused with different input.
 - [ ] **B4.6** Verify the booking path in Playwright and the seat claims against the isolated database. Cover two competing requests for the same seat, a multi-seat conflict with zero partial writes, and the exact booking cutoff.
 
 ### B5 — Booking retrieval and cancellation
+
+Applies [D2](#d2--guest-link-and-checkout-access) and [D5](#d5--cancellation-attendance-and-venue-payments).
 
 - [ ] **B5.1** Build the guest booking-details page and permitted actions behind the private link. Verify that the reference alone reveals no contact details.
 - [ ] **B5.2** Add guest cancellation before the two-hour cutoff. Cancel the whole booking and release all seats together. Verify the cutoff and a repeated cancellation.
@@ -98,19 +158,25 @@ Mark a task complete when its stated behavior is implemented and its relevant ch
 
 ### B6 — Staff operations
 
-- [ ] **B6.1** Build the staff booking list and detail view, with search by reference, filters by film, showtime and status, and an occupancy view.
-- [ ] **B6.2** Let operations staff record arrivals and at-venue payments. From showtime start, let staff mark unattended bookings as no-shows.
+Applies [D5](#d5--cancellation-attendance-and-venue-payments) and [D7](#d7--web-behavior-and-records).
+
+- [ ] **B6.1** Build the paginated staff booking list and detail view, with search by reference, filters by film, showtime and status, and an occupancy view. Default to upcoming showtimes.
+- [ ] **B6.2** Record arrivals and at-venue payments independently with timestamps and staff attribution. From showtime start, let staff mark unattended confirmed bookings as no-shows.
 - [ ] **B6.3** Record significant staff actions, including actor, time, and outcome. Verify staff workflows and role restrictions through the staff UI and API.
 
 ### B7 — Communication
 
-- [ ] **B7.1** Send confirmation email with the booking reference and private link after a booking commits.
+Applies [D2](#d2--guest-link-and-checkout-access) and [D6](#d6--email-delivery).
+
+- [ ] **B7.1** Add a durable mail queue and a Resend production adapter to the mail interface started in B2.2. Send Arabic booking confirmations, staff invitations, and password-reset messages. Keep local or test delivery for development and CI.
 - [ ] **B7.2** Notify affected guests after a showtime is cancelled and record the delivery outcome for each.
-- [ ] **B7.3** Let staff see delivery status and resend confirmation to the original email address. Verify that failed email delivery and a resend leave booking and seat state intact.
+- [ ] **B7.3** Show delivery status and let staff resend the same unexpired confirmation link to the original email address. Verify that a failed delivery and a resend leave booking, seat state, and link expiry intact.
 
 ### B8 — Release and operations
 
-- [ ] **B8.1** Configure production secrets, database, and sender settings. Rehearse migrations, backup and restore, and recovery from a failed release.
+Applies [D7](#d7--web-behavior-and-records) and [D8](#d8--release-and-execution-defaults).
+
+- [ ] **B8.1** Configure the same-origin Node 24 deployment on Render, separate databases, runtime secrets, and the verified sender. Rehearse migrations, backup and restore, and recovery from a failed release.
 - [ ] **B8.2** Run the full journey in a release-like environment, from staff publishing a showtime through guest booking, retrieval, cancellation, and staff arrival or payment recording. Verify Arabic layout and keyboard use.
 - [ ] **B8.3** Verify the public catalogue, staff and guest access boundaries, simultaneous seat claims, and notification failures before using real customer data.
-- [ ] **B8.4** Establish production signals and a response checklist for booking failures and email delivery problems. Record launch verification in the progress tracker.
+- [ ] **B8.4** Configure and verify contact-data expiry with the venue owner's production setting. Establish production signals and a response checklist for booking failures and email delivery problems. Record launch verification in the progress tracker.
