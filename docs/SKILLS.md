@@ -27,9 +27,14 @@ The agent loads a skill automatically when the task matches the **description** 
 | `tanstack-devtools` | Unified devtools panel for Query, Router, and more, with a Vite plugin and extensible plugins. |
 | `tanstack-query` | Server state: fetching, caching, mutations, `queryOptions`, Suspense. |
 | `tanstack-router` | Type-safe routing: file-based routes, loaders, search params, integration with TanStack Query. |
+| `vercel-composition-patterns` | React composition: compound components, explicit variants, children over render props, React 19 APIs. Advisory. |
+| `vercel-react-best-practices` | Vercel's prioritized React/Next.js performance rules (waterfalls, bundle size, re-renders). Advisory. |
+| `vercel-react-view-transitions` | Native `<ViewTransition>` animation: shared elements, route changes, enter/exit, Suspense reveals. |
 | `vite` | Vite configuration: config, plugins, SSR, library builds, and the Vite 8 Rolldown migration. |
 | `vitest` | Writing tests with Vitest: API, mocking, coverage, filtering, fixtures. |
 | `react-hook-form` | Building and optimizing client-side forms with `useForm`, `useWatch`, `useController`, `useFieldArray`, and validation integration. |
+| `shadcn` | Adding/searching/fixing shadcn components, registries, presets, and design systems from `DESIGN.md` (not installed in this project). |
+| `tailwind-design-system` | Tailwind CSS v4 design tokens, CSS-first config, component variants, and responsive patterns (not installed in this project). |
 | `zod` | Zod schema validation best practices: type safety, parsing, error handling, `z.infer`. |
 | [`verify-booking-system`](../.agents/skills/verify-booking-system/SKILL.md) | Run the booking flow in Playwright and save frontend/API verification evidence. |
 | [`review-booking-change`](../.agents/skills/review-booking-change/SKILL.md) | Risk-based review of booking changes; verify findings before fixing them. |
@@ -219,6 +224,52 @@ The agent loads a skill automatically when the task matches the **description** 
   - Writing form schemas (`pages/bookings/model/booking.ts`) and API request schemas.
 - **Scope:** Schema definition and validation only. React Hook Form integration belongs to `react-hook-form`; OpenAPI client generation is out of scope.
 
+### 18. `shadcn`
+
+- **What it does:** A framework for building UI and design systems where components are added as source code via the CLI. Covers registries, presets, `components.json`, theming, and chat primitives.
+- **When to use it:** Adding, searching, fixing, composing, or theming shadcn components — including `shadcn init`, `--preset` codes, applying a `DESIGN.md`, or working in a repo that has `components.json`.
+- **Key rules:** Use the project's package runner (here `npx shadcn@latest ...`); check installed components and `search` registries before writing custom UI; run `npx shadcn@latest docs <component>` and fetch the URLs before creating/fixing a component; never decode preset codes by hand; never use `--overwrite` without explicit approval; ask which registry to use when the user does not name one.
+- **In this project:** **Not installed** — there is no `components.json`, Tailwind, or shadcn component directory, and the UI uses plain CSS in `app/styles/`. Adopting it is a dependency/architecture decision: check [`LIBRARIES.md`](LIBRARIES.md) and ask first. The skill only becomes routine once a shadcn project is actually in the checkout.
+
+### 19. `tailwind-design-system`
+
+- **What it does:** Building scalable design systems with Tailwind CSS v4: CSS-first configuration via `@theme`, semantic tokens (OKLCH), dark mode variants, component variants, responsive patterns, and accessibility.
+- **When to use it:** Creating a component library or design system, defining design tokens/theming, standardizing UI patterns, or migrating Tailwind v3 → v4.
+- **Key rules:** v4 uses `@import "tailwindcss"` and `@theme { --color-*: ... }` rather than `tailwind.config.ts` and `theme.extend`; use semantic tokens, not raw color values; always include reduced-motion handling.
+- **In this project:** **Not installed** — Tailwind is not in either `package.json`, and global CSS lives in `apps/web/src/app/styles/`. Do not introduce Tailwind to use this skill; check [`LIBRARIES.md`](LIBRARIES.md) and ask first. See also the `shadcn` skill, which assumes Tailwind in the target project.
+
+### 20. `vercel-composition-patterns`
+
+- **What it does:** Composition patterns for flexible React components: avoid boolean-prop proliferation with compound components, lift state into providers, define generic `state`/`actions`/`meta` context interfaces, prefer explicit variants and `children` over render props.
+- **When to use it:** Refactoring a component with many booleans (`isThread`, `isEditing`, ...), designing a reusable component API, reviewing component architecture, or working with compound components/context providers.
+- **React 19 note:** Use `ref` as a regular prop instead of `forwardRef`, and `use()` instead of `useContext()`. This project is on React 19.3.1, so these apply.
+- **In this project:** Advisory guidance for component internals. It does **not** override [Feature-Sliced Design](https://feature-sliced.github.io/documentation/) placement: code still goes in `pages/<slice>/ui` and is exposed through that slice's `index.ts`. Detailed rule files live inside the skill folder; a compiled `AGENTS.md` there is reference only — do not edit it.
+
+### 21. `vercel-react-best-practices`
+
+- **What it does:** 70 prioritized performance rules in 8 categories: eliminating waterfalls (`async-`), bundle size (`bundle-`), server performance (`server-`), client fetching (`client-`), re-renders (`rerender-`), rendering (`rendering-`), JavaScript hot paths (`js-`), and advanced patterns (`advanced-`).
+- **When to use it:** Writing or reviewing React code for performance, optimizing bundle size or load time, and refactoring data fetching or re-render behavior.
+- **In this project:** Advisory. Several rules target Next.js or SWR (`next/dynamic`, `useSWRSubscription`, RSC serialization, `after()`, `React.cache()`) and **do not apply** to this React + Vite + TanStack Query app. Where a rule conflicts with project conventions — `@tanstack/react-query` over SWR, slice `index.ts` public APIs over "avoid barrel imports", plain CSS over a CSS-in-JS stack — [`AGENTS.md`](../AGENTS.md) and [`LIBRARIES.md`](LIBRARIES.md) win. The compiled `AGENTS.md` inside the skill folder is reference only; read individual `rules/*.md` files for details.
+
+### 22. `vercel-react-view-transitions`
+
+- **What it does:** Native UI animation via `document.startViewTransition`: the React `<ViewTransition>` component, `addTransitionType`, shared-element names, and `::view-transition-*` CSS pseudo-elements. Covers enter/exit, list identity, Suspense reveals, directional navigation, and reduced motion.
+- **When to use it:** Adding page/route transitions, shared-element morphs, animated enter/exit, list reorder, directional navigation, or Suspense reveals when explicitly asked for animation.
+- **Key rules:** Every transition must communicate a spatial relationship; implement applicable patterns in priority order (shared element → Suspense reveal → list identity → state change → route change); use type-keyed maps for hierarchical navigation, simple string props for Suspense; include `default: 'none'` deliberately; always pair `enter` with `exit`; always add the reduced-motion CSS.
+- **In this project:** React 19.3.1 is installed, so `<ViewTransition>` / `addTransitionType` are available without a canary build; browser support is Chromium 125+, Firefox 144+, Safari 18.2+ with graceful fallback. Next.js-specific sections do not apply (Vite SPA with TanStack Router). No new dependency is needed.
+
+### 23. `takeover-booking-work`
+
+- **What it does:** Saves a local checkpoint when work pauses or moves to another chat, and resumes from the real checkout and verification state.
+- **When to use it:** Pausing unfinished booking work or being asked to pick it up in a new chat.
+- **How it works:** **Pause** — record checkout path, branch, HEAD, `git status --short --branch`, and PR URL; write `.booking-work/handoffs/<task>.md` from the [checkpoint template](../.agents/skills/takeover-booking-work/checkpoint.md) with the last completed check and the next concrete action; keep credentials and customer data out. **Resume** — read the checkpoint, compare it with current HEAD/status/diff and any PR or job status, resolve discrepancies, then continue from the first unmet acceptance criterion.
+
+### 24. `review-booking-workflow`
+
+- **What it does:** A focused workflow retrospective after repeated rework, a verification stall, or avoidable user intervention.
+- **When to use it:** Asked for a workflow retrospective, or when a task shows concrete friction worth fixing at the source.
+- **How it works:** Find one observed friction point, trace it to a cause, choose one reusable improvement with a check that would detect it, apply a small in-scope workflow fix or report a proposal, and record the friction/evidence/improvement/result in the handoff. Stop if there is no evidence of friction.
+
 ---
 
 ## How skills map to this project's structure
@@ -232,9 +283,12 @@ As stated in [`AGENTS.md`](../AGENTS.md): React + Vite in `apps/web`, a Hono API
 | `apps/api` (Hono) | `hono`, plus `drizzle` + `neon-drizzle` + `neon-postgres` for the database layer |
 | Database (Neon Postgres) | `neon-postgres` for management and queries, `neon-drizzle` for setup and migrations |
 | Testing | `vitest` for unit tests, `agent-browser` for manual/E2E QA, Hono CLI (inside `hono`) for API testing |
+| React composition, performance, animation | `vercel-composition-patterns`, `vercel-react-best-practices`, `vercel-react-view-transitions` (advisory; project rules win) |
+| UI component systems | `shadcn`, `tailwind-design-system` — **not installed**; adoption needs a decision first |
+| Handoff and workflow | `takeover-booking-work` for checkpoints, `review-booking-workflow` for retrospectives, `deliver-booking-pr` for PR/CI |
 | Library usage review | `opensrc` (a tool, not a skill — see the next section) |
 
-`hono-jsx` and `hono-void` are **not used in the current setup**; they load only if the frontend switches from React to `hono/jsx` or we adopt Void. `tanstack-cli` and `tanstack-config` are also unused because we are not scaffolding TanStack Start or publishing a package.
+`hono-jsx` and `hono-void` are **not used in the current setup**; they load only if the frontend switches from React to `hono/jsx` or we adopt Void. `tanstack-cli` and `tanstack-config` are also unused because we are not scaffolding TanStack Start or publishing a package. `shadcn` and `tailwind-design-system` are likewise dormant until their packages exist in the checkout — their presence in `skills-lock.json` only means the skill is installed, not that the library is. The three `vercel-*` skills are reference guidance, not a mandate to change stack: Next.js/SWR-specific rules do not apply here and this project's conventions in [`AGENTS.md`](../AGENTS.md) and [`LIBRARIES.md`](LIBRARIES.md) take precedence.
 
 ---
 

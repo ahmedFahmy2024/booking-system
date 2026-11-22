@@ -33,6 +33,7 @@ Versions were taken from `package.json` when this file was written. To verify a 
 | `@tanstack/devtools*` | 0.8.7–5.108.2 (see §8) | web (dev) | Devtools panels for Query and Router. |
 | `typescript` | ~7.0.2 / 7.0.2 | web + api (dev) | Types and typechecking for all code. |
 | `oxlint` | 1.90.0 / 1.94.0 | web + api (dev) | Linting instead of ESLint. |
+| `react-doctor` | 0.9.23 | web (dev) | Advisory static review for React changes. See the [development workflow](WORKFLOW.md). |
 | `vitest` | 5.1.1 | web + api (dev) | All unit and integration tests. |
 | `@testing-library/react` | 16.3.3 | web (dev) | Testing React components. |
 | `jsdom` | 31.0.1 | web (dev) | DOM environment for Vitest. |
@@ -245,6 +246,7 @@ As stated in [`AGENTS.md`](../AGENTS.md): React + Vite in `apps/web`, a Hono API
 | Unit tests | `vitest`, `@testing-library/react`, `jsdom` | Jest / Enzyme / happy-dom |
 | E2E tests | `@playwright/test` | Cypress / Puppeteer |
 | Build and quality | `vite`, `typescript`, `oxlint`, `tsx`, `dotenv` | Webpack / ESLint / ts-node |
+| UI animation | React 19.3 built-in `ViewTransition` / `addTransitionType` | third-party animation libraries without a reason |
 
 ---
 
@@ -256,5 +258,12 @@ Libraries and skills are linked: skills come from `.agents/skills` and are catal
 - `neon-postgres` / `neon-drizzle` → skills for managing the database that `@neondatabase/serverless` and `drizzle-kit` connect to.
 - `hono` → skill for the framework used in `apps/api`.
 - `agent-browser` → UI QA tool, complementary to `@playwright/test`.
+- `react-doctor` → advisory static review of changed React code, run from `apps/web` and in the Web CI job. It complements `npm run verify`; it is not a replacement for lint, typecheck, tests, or build.
+
+A skill being installed does **not** mean its library is installed:
+
+- `shadcn` and `tailwind-design-system` are present in `skills-lock.json`, but there is no `components.json`, no Tailwind dependency, and no shadcn component folder here. Styling is plain CSS under `apps/web/src/app/styles/`. Adopting either is a dependency/architecture decision — check this file and ask first.
+- `vercel-react-view-transitions` needs no new package: React 19.3.1 already ships `<ViewTransition>` and `addTransitionType`. Browser support is Chromium 125+, Firefox 144+, Safari 18.2+, with graceful degradation.
+- `vercel-composition-patterns` and `vercel-react-best-practices` are advisory. Their Next.js/SWR/RSC rules do not apply to this React + Vite + TanStack Query app; where they conflict with this repository's conventions, [`AGENTS.md`](../AGENTS.md) and this file win.
 
 To verify any package's behavior, use `opensrc path <package>` (rules in [`AGENTS.md`](../AGENTS.md)).

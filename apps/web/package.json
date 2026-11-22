@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "doctor": "react-doctor --yes --blocking none --no-telemetry --no-supply-chain",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
@@ -38,6 +39,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "jsdom": "^31.0.1",
     "oxlint": "^1.90.0",
+    "react-doctor": "0.9.23",
     "typescript": "~7.0.2",
     "vite": "^8.3.6",
     "vitest": "^5.1.1"

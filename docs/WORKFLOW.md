@@ -19,6 +19,13 @@
    Each command runs lint, typecheck, Vitest, and build. [GitHub Actions](../.github/workflows/ci.yml) uses the same commands. API route tests mock the database boundary.
 3. For changes to booking creation, service selection, or list persistence, run the [Playwright booking flow](../.agents/skills/verify-booking-system/SKILL.md). For other visible changes, exercise the affected behavior in the browser and capture the resulting state. Use traces or screenshots where they clarify the result. The same journey is available as a manual `Booking flow — Playwright` CI job (`workflow_dispatch`); it needs the `E2E_DATABASE_URL` secret pointing at a dedicated Neon database named `booking_system_test` and uploads its trace as an artifact. It is not part of the push/PR checks.
 4. For a frontend modernization, follow the [web platform audit](WEB-AUDIT.md) before changing the implementation.
+5. For React changes, run React Doctor from the repository root before handoff. Compare against the task's base branch, using `origin/main` when targeting main.
+
+   ```powershell
+   npm --prefix apps/web run doctor -- --scope changed --base origin/main --include-untracked
+   ```
+
+   Use `npm --prefix apps/web run doctor` for a full baseline. Review confirmed findings and report unresolved ones with their rule and file. The Web CI job uses the PR's base commit to report introduced findings in the job log. Findings are advisory and use the same pinned CLI as local verification.
 
 ## Review and handoff
 
