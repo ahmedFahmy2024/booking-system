@@ -1,0 +1,75 @@
+{
+  "version": 2,
+  "skills": {
+    "agent-browser": {
+      "source": "vercel-labs/agent-browser",
+      "commit": "d2dfc782ccdd79d25a9b4f0acced9321789cecb8",
+      "sourceType": "github",
+      "skillPath": "skills/agent-browser/SKILL.md",
+      "computedHash": "a0dfac7503f69bcf529b2660fc79964064c4f179eb65695904ddc45fc0d99d20"
+    },
+    "drizzle": {
+      "source": "lobehub/lobehub",
+      "commit": "f09018061efeafb8030b883528ba34e6c498352d",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/drizzle/SKILL.md",
+      "computedHash": "bc89b81dbe1ebc2f4d0d22a573cd19c6c9f5063ec4143c1af72dd4884932484a"
+    },
+    "feature-sliced-design": {
+      "source": "feature-sliced/skills",
+      "commit": "5e95aaebb84541742686e56352b7569acf4306f1",
+      "sourceType": "github",
+      "skillPath": "feature-sliced-design/SKILL.md",
+      "computedHash": "1e0cac31c1e579545f055b6585ada1a3d75ee5ed91052addc6e9a49ec63d674b"
+    },
+    "hono": {
+      "source": "honojs/skills",
+      "commit": "e54ce51f6effaeb574ebd2629e89e086e14a2db3",
+      "sourceType": "github",
+      "skillPath": "skills/hono/SKILL.md",
+      "computedHash": "b9aa6ed86fce02216f2f43c4b5c651ba0055f0785a568d84fc446721fc832172"
+    },
+    "hono-jsx": {
+      "source": "honojs/skills",
+      "commit": "e54ce51f6effaeb574ebd2629e89e086e14a2db3",
+      "sourceType": "github",
+      "skillPath": "skills/hono-jsx/SKILL.md",
+      "computedHash": "1654a017075171f1c22809bd897bfe2eb698129ec67664511825448c3d897d27"
+    },
+    "hono-void": {
+      "source": "honojs/skills",
+      "commit": "e54ce51f6effaeb574ebd2629e89e086e14a2db3",
+      "sourceType": "github",
+      "skillPath": "skills/hono-void/SKILL.md",
+      "computedHash": "c3204abed1d0a65d245080431f683650171e685f2b81ab86522547d1691aa4ea"
+    },
+    "neon-drizzle": {
+      "source": "neondatabase/ai-rules",
+      "commit": "1ceaf89a4e0acfbaf152ac2e85d45afd55f49c0f",
+      "sourceType": "github",
+      "skillPath": "neon-plugin/skills/neon-drizzle/SKILL.md",
+      "computedHash": "de8b157bf296904d6ad5ce956a208b8d22ad37f03f178ee1e37973a545b9d5a8"
+    },
+    "neon-postgres": {
+      "source": "neondatabase/agent-skills",
+      "commit": "d3601d9e1f9398b96a1ee25047bafba5f04199eb",
+      "sourceType": "github",
+      "skillPath": "skills/neon-postgres/SKILL.md",
+      "computedHash": "0e1db49f25e9208cb24fa2084a542d52d60a85c09271b915acc3dad6901de6a0"
+    },
+    "vite": {
+      "source": "antfu/skills",
+      "commit": "4a6bb39e7b45e26402eb215393c51ccf5df1ca4c",
+      "sourceType": "github",
+      "skillPath": "skills/vite/SKILL.md",
+      "computedHash": "db9eea82d8bf6ce0f60a4a1d94a626c718df7d97160b5f1d5b150647e0c401b3"
+    },
+    "vitest": {
+      "source": "antfu/skills",
+      "commit": "4a6bb39e7b45e26402eb215393c51ccf5df1ca4c",
+      "sourceType": "github",
+      "skillPath": "skills/vitest/SKILL.md",
+      "computedHash": "bd95e41d66d76da9008893c9bc48c30f0a68f352cd2b00017767f5e4c129501d"
+    }
+  }
+}

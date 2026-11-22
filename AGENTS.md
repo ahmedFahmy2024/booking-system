@@ -2,6 +2,10 @@
 
 Single repository. React + Vite frontend in `apps/web`, Hono API in `apps/api`, Neon Postgres behind the API only.
 
+## Skills
+
+Project skills live in `.agents/skills` and are listed in [`docs/SKILLS.md`](docs/SKILLS.md) with what each one does and when to use it. Load the relevant skill before working on its area: `vite` / `feature-sliced-design` for `apps/web`, `hono` / `drizzle` / `neon-drizzle` / `neon-postgres` for `apps/api` and the database, `vitest` for tests, and `agent-browser` for browser QA.
+
 ## Layout
 
 ```text
