@@ -1,70 +1,11 @@
+import arBookings from './locales/ar-EG/bookings'
+import arCommon from './locales/ar-EG/common'
+import enBookings from './locales/en/bookings'
+import enCommon from './locales/en/common'
+
 export const defaultNamespace = 'common'
 
 export const messages = {
-  'ar-EG': {
-    common: {
-      appTitle: 'حجوزات السينما',
-      loading: 'جارٍ التحميل…',
-      pageLoadError: 'تعذر تحميل الصفحة',
-      retry: 'إعادة المحاولة',
-    },
-    bookings: {
-      heading: 'حجوزات السينما',
-      description: 'احجز عرضًا وراجع الحجوزات المسجّلة.',
-      listHeading: 'الحجوزات',
-      newBooking: 'حجز جديد',
-      service: 'الخدمة',
-      selectService: 'اختر خدمة',
-      serviceOption_zero: '{{name}} ({{count, number}} دقيقة)',
-      serviceOption_one: '{{name}} (دقيقة واحدة)',
-      serviceOption_two: '{{name}} (دقيقتان)',
-      serviceOption_few: '{{name}} ({{count, number}} دقائق)',
-      serviceOption_many: '{{name}} ({{count, number}} دقيقة)',
-      serviceOption_other: '{{name}} ({{count, number}} دقيقة)',
-      customerName: 'اسم العميل',
-      email: 'البريد الإلكتروني',
-      dateAndTime: 'التاريخ والوقت بتوقيت جهازك',
-      dateAndTimeCairo: '{{date}} بتوقيت القاهرة',
-      missingService: 'اختر إحدى الخدمات',
-      missingName: 'أدخل اسمك',
-      invalidEmail: 'أدخل بريدًا إلكترونيًا صحيحًا',
-      invalidDate: 'اختر تاريخًا ووقتًا صالحين',
-      saveError: 'تعذر حفظ الحجز. حاول مرة أخرى.',
-      saving: 'جارٍ الحفظ…',
-      createBooking: 'تأكيد الحجز',
-      emptyTitle: 'لا توجد حجوزات بعد',
-      emptyDescription: 'ستظهر الحجوزات الجديدة هنا.',
-    },
-  },
-  en: {
-    common: {
-      appTitle: 'Cinema bookings',
-      loading: 'Loading…',
-      pageLoadError: 'Could not load this page',
-      retry: 'Retry',
-    },
-    bookings: {
-      heading: 'Cinema bookings',
-      description: 'Book a screening and view saved bookings.',
-      listHeading: 'Bookings',
-      newBooking: 'New booking',
-      service: 'Service',
-      selectService: 'Select a service',
-      serviceOption_one: '{{name}} ({{count, number}} minute)',
-      serviceOption_other: '{{name}} ({{count, number}} minutes)',
-      customerName: 'Customer name',
-      email: 'Email',
-      dateAndTime: 'Date and time in your device time zone',
-      dateAndTimeCairo: '{{date}} Cairo time',
-      missingService: 'Choose a service',
-      missingName: 'Enter your name',
-      invalidEmail: 'Enter a valid email',
-      invalidDate: 'Choose a valid date and time',
-      saveError: 'Could not save the booking. Try again.',
-      saving: 'Saving…',
-      createBooking: 'Create booking',
-      emptyTitle: 'No bookings yet',
-      emptyDescription: 'New bookings will appear here.',
-    },
-  },
+  'ar-EG': { common: arCommon, bookings: arBookings },
+  en: { common: enCommon, bookings: enBookings },
 } as const
