@@ -1,15 +1,21 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 
+vi.mock('@/features/bookings/api/bookings', () => ({
+  listBookings: vi.fn().mockResolvedValue([]),
+  listServices: vi
+    .fn()
+    .mockResolvedValue([{ id: 1, name: 'Standard Screening', durationMinutes: 120 }]),
+  createBooking: vi.fn(),
+}))
+
 describe('App', () => {
-  it('renders the starter page and updates the counter', () => {
+  it('renders the booking screen with the service catalogue', async () => {
     render(<App />)
 
-    expect(screen.getByRole('heading', { name: /get started/i })).toBeDefined()
-
-    const button = screen.getByRole('button', { name: /count is 0/i })
-    fireEvent.click(button)
-    expect(screen.getByRole('button', { name: /count is 1/i })).toBeDefined()
+    expect(await screen.findByRole('heading', { name: /cinema bookings/i })).toBeDefined()
+    expect(await screen.findByRole('option', { name: /standard screening/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /create booking/i })).toBeDefined()
   })
 })

@@ -3,6 +3,31 @@
   "plugins": ["react", "typescript", "oxc"],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "@neondatabase/serverless",
+            "message": "Database drivers and DATABASE_URL stay on the API side. Call Hono over HTTP instead."
+          },
+          {
+            "name": "drizzle-orm",
+            "message": "Drizzle queries belong in apps/api/src/db. Call Hono over HTTP instead."
+          },
+        ],
+        "patterns": [
+          {
+            "group": ["drizzle-orm/*"],
+            "message": "Drizzle queries belong in apps/api/src/db. Call Hono over HTTP instead."
+          },
+          {
+            "group": ["**/apps/api/src/db/**", "**/api/src/db/**"],
+            "message": "Server-only database code must not be imported into apps/web."
+          }
+        ]
+      }
+    ]
   }
 }

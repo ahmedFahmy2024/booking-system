@@ -28,6 +28,12 @@ drizzle/      # generated SQL migrations (apps/api)
 - `shared/` may import other shared modules and external libraries, never `app/` or `features/`.
 - React reaches Hono over HTTP. Never import `@neondatabase/serverless`, `drizzle-orm`, or anything from `apps/api/src/db` into `apps/web`. `DATABASE_URL` stays on the API side.
 - API route groups live under `apps/api/src/features/<name>` and expose a Hono router; `app.ts` mounts them.
+- Server-only imports (`@neondatabase/serverless`, `drizzle-orm`, `apps/api/src/db`) are blocked in `apps/web` by `no-restricted-imports` in `apps/web/.oxlintrc.json`. Both apps have their own `.oxlintrc.json` and a `lint` script. Cross-feature imports through another feature's internals are a convention only; Oxlint cannot express that rule yet.
+- CI (`.github/workflows/ci.yml`) runs lint, typecheck, tests, and builds for both apps. Route tests mock `getDb()`, so CI needs no `DATABASE_URL`.
+
+## Frontend → API
+
+`apps/web` calls Hono over HTTP. In dev, Vite proxies `/api/*` to `http://localhost:3000` and strips the prefix; set `VITE_API_URL` for other environments (see `apps/web/.env.example`). Booking UI lives in `apps/web/src/features/bookings` and is imported only through its public `index.ts`.
 
 ## Commands
 
@@ -45,6 +51,7 @@ npm run build
 npm run db:generate   # generate SQL migration after schema changes
 npm run db:migrate    # apply migrations (needs DATABASE_URL)
 npm run db:push       # quick schema sync for local development
+npm run db:seed       # idempotent seed of services (needs DATABASE_URL)
 ```
 
 Copy `apps/api/.env.example` to `apps/api/.env` and set the Neon `DATABASE_URL` before running DB commands.
