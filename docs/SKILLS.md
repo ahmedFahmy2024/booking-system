@@ -29,6 +29,9 @@
 | `tanstack-router` | routing آمن النوع: file-based routes، loaders، search params، والدمج مع TanStack Query. |
 | `vite` | إعداد وضبط Vite: الـ config، الـ plugins، الـ SSR، وبناء المكتبات، وترقية Vite 8 إلى Rolldown. |
 | `vitest` | كتابة اختبارات بـ Vitest: الـ API، الـ mocking، الـ coverage، الـ filtering، والـ fixtures. |
+| [`verify-booking-system`](../.agents/skills/verify-booking-system/SKILL.md) | شغّل مسار الحجز في Playwright واحفظ دليل التحقق من الواجهة والـ API. |
+| [`review-booking-change`](../.agents/skills/review-booking-change/SKILL.md) | راجع تغييرات الحجز حسب المخاطر واتحقق من الملاحظات قبل إصلاحها. |
+| [`deliver-booking-pr`](../.agents/skills/deliver-booking-pr/SKILL.md) | جهّز وصف الـ PR، وافتح draft لما يكون مطلوب، وتابع الـ CI لحد التسليم. |
 
 ---
 
