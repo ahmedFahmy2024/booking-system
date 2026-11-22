@@ -11,6 +11,8 @@ Run from the repository root with Node 24 and both apps' dependencies installed.
 
 Playwright starts its own Hono server on port 3000 and Vite server on port 5173 for the run. The browser reaches Hono through Vite's `/api` proxy. Parallel runs require a checkout or environment with separate ports and data.
 
+CI also exposes this journey as a manual `workflow_dispatch` job named `Booking flow — Playwright`. It writes `apps/api/.env.test` from the `E2E_DATABASE_URL` repository secret, migrates and seeds that dedicated Neon database, runs the spec with `--trace on`, and uploads `apps/web/test-results/` as an artifact. It does not run on push or pull request.
+
 ## Doctor
 
 From the root, run `npm --prefix apps/web run test:e2e -- --list` to check discovery and the test-database configuration. Confirm ports are free before launching. On Windows, `Get-NetTCPConnection -State Listen -LocalPort 3000,5173 -ErrorAction SilentlyContinue` should return no listeners. Playwright also rejects occupied ports.

@@ -17,7 +17,7 @@
    ```
 
    Each command runs lint, typecheck, Vitest, and build. [GitHub Actions](../.github/workflows/ci.yml) uses the same commands. API route tests mock the database boundary.
-3. For changes to booking creation, service selection, or list persistence, run the [Playwright booking flow](../.agents/skills/verify-booking-system/SKILL.md). For other visible changes, exercise the affected behavior in the browser and capture the resulting state. Use traces or screenshots where they clarify the result.
+3. For changes to booking creation, service selection, or list persistence, run the [Playwright booking flow](../.agents/skills/verify-booking-system/SKILL.md). For other visible changes, exercise the affected behavior in the browser and capture the resulting state. Use traces or screenshots where they clarify the result. The same journey is available as a manual `Booking flow — Playwright` CI job (`workflow_dispatch`); it needs the `E2E_DATABASE_URL` secret pointing at a dedicated Neon database named `booking_system_test` and uploads its trace as an artifact. It is not part of the push/PR checks.
 4. For a frontend modernization, follow the [web platform audit](WEB-AUDIT.md) before changing the implementation.
 
 ## Review and handoff

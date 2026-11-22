@@ -1,87 +1,89 @@
-# دليل الـ Skills المتاحة في المشروع
+# Available project skills
 
-## مقدمة
+## Introduction
 
-الـ skills بتاعت المشروع موجودة في المجلد [`.agents/skills`](../.agents/skills). كل skill عبارة عن مجلد جواه ملف `SKILL.md` (وممكن يكون معاه ملفات مرجعية إضافية جوه `references/` و `templates/` و غيرها).
+Project skills live in [`.agents/skills`](../.agents/skills). Each skill is a folder containing a `SKILL.md` (optionally with extra reference files under `references/`, `templates/`, etc.).
 
-الـ agent بيحمل الـ skill تلقائياً لما المهمة المطلوبة تطابق الـ **description** المكتوبة في بداية ملف `SKILL.md`. يعني انت مش محتاج تستدعيها بإيدك في العادي — بس من المفيد تعرف كل واحدة بتعمل إيه وامتى بتتحمل، عشان تكتب طلباتك بشكل واضح وتستفيد منها.
+The agent loads a skill automatically when the task matches the **description** at the top of its `SKILL.md`. You normally do not need to invoke one by hand — but knowing what each one does and when it loads helps you write clear requests and get the most out of them.
 
-> ملاحظة: مصادر الـ skills و إصداراتها متسجلة في ملف [`skills-lock.json`](../skills-lock.json).
+> Note: skill sources and versions are recorded in [`skills-lock.json`](../skills-lock.json).
 
 ---
 
-## نظرة سريعة
+## Quick reference
 
-| الـ Skill | متى تستخدمه (باختصار) |
+| Skill | When to use it (short version) |
 | --- | --- |
-| `agent-browser` | أي تعامل مع متصفح: فتح صفحة، تعبئة فورم، ضغط زرار، سكرين شوت، سحب بيانات، أو اختبار تطبيق ويب/تطبيق Electron (زي VS Code و Slack). |
-| `drizzle` | كتابة أو تعديل schema واستعلامات Drizzle: جداول، indexes، relations، joins، والأنواع المستنتجة. |
-| `feature-sliced-design` | تنظيم هيكل frontend حسب منهجية FSD v2.1: طبقات، slices، public APIs، حدود الاستيراد، ونقل الكود بين الطبقات. |
-| `hono` | بناء تطبيقات Hono: الـ routing، الـ middleware، الـ validation، الـ JSX، والاختبار عبر Hono CLI. |
-| `hono-jsx` | بناء واجهة Hono باستخدام `hono/jsx` (صفحات، layouts، forms) بدل React، مع SSR و client components. |
-| `hono-void` | فحص واختبار تطبيقات Void المبنية على Hono (صفحات، page actions، و API routes) باستخدام Hono CLI. |
-| `neon-drizzle` | إعداد Drizzle من الصفر على Neon أو إضافته لتطبيق موجود: تثبيت، إعداد الاتصال، توليد schema، وتشغيل migrations. |
-| `neon-postgres` | التعامل مع قاعدة بيانات Neon/Lakebase Postgres الموجودة: الاتصالات، migrations، branching، الفواتير، البحث (vector/full-text/hybrid). |
-| `tanstack-cli` | scaffolding لمشاريع TanStack Start بالـ integrations الجاهزة وخادم MCP (مش مستخدم في المشروع ده حالياً). |
-| `tanstack-config` | أدوات بناء ونشر حزم JavaScript/TypeScript (مش مستخدم في المشروع ده — مش بننشر package). |
-| `tanstack-devtools` | لوحة devtools موحّدة لـ Query و Router وغيرها، مع Vite plugin وإضافات قابلة للتوسيع. |
-| `tanstack-query` | إدارة server state: الـ fetching، الـ caching، الـ mutations، الـ queryOptions، والـ Suspense. |
-| `tanstack-router` | routing آمن النوع: file-based routes، loaders، search params، والدمج مع TanStack Query. |
-| `vite` | إعداد وضبط Vite: الـ config، الـ plugins، الـ SSR، وبناء المكتبات، وترقية Vite 8 إلى Rolldown. |
-| `vitest` | كتابة اختبارات بـ Vitest: الـ API، الـ mocking، الـ coverage، الـ filtering، والـ fixtures. |
-| [`verify-booking-system`](../.agents/skills/verify-booking-system/SKILL.md) | شغّل مسار الحجز في Playwright واحفظ دليل التحقق من الواجهة والـ API. |
-| [`review-booking-change`](../.agents/skills/review-booking-change/SKILL.md) | راجع تغييرات الحجز حسب المخاطر واتحقق من الملاحظات قبل إصلاحها. |
-| [`deliver-booking-pr`](../.agents/skills/deliver-booking-pr/SKILL.md) | جهّز وصف الـ PR، وافتح draft لما يكون مطلوب، وتابع الـ CI لحد التسليم. |
+| `agent-browser` | Any browser interaction: open a page, fill a form, click a button, take a screenshot, scrape data, or test a web/Electron app (VS Code, Slack, ...). |
+| `drizzle` | Writing or changing Drizzle schemas and queries: tables, indexes, relations, joins, inferred types. |
+| `feature-sliced-design` | Organizing frontend structure per FSD v2.1: layers, slices, public APIs, import boundaries, moving code between layers. |
+| `hono` | Building Hono apps: routing, middleware, validation, JSX, and testing with Hono CLI. |
+| `hono-jsx` | Building UI with `hono/jsx` (pages, layouts, forms) instead of React, with SSR and client components. |
+| `hono-void` | Checking and testing Void apps built on Hono (pages, page actions, API routes) with Hono CLI. |
+| `neon-drizzle` | Setting up Drizzle on Neon from scratch or adding it to an existing app: install, connection setup, schema generation, migrations. |
+| `neon-postgres` | Working with an existing Neon/Lakebase Postgres database: connections, migrations, branching, billing, search (vector/full-text/hybrid). |
+| `tanstack-cli` | Scaffolding TanStack Start projects with ready-made integrations and an MCP server (not currently used in this project). |
+| `tanstack-config` | Tooling for building, versioning, and publishing JS/TS packages (not used here — we do not publish a package). |
+| `tanstack-devtools` | Unified devtools panel for Query, Router, and more, with a Vite plugin and extensible plugins. |
+| `tanstack-query` | Server state: fetching, caching, mutations, `queryOptions`, Suspense. |
+| `tanstack-router` | Type-safe routing: file-based routes, loaders, search params, integration with TanStack Query. |
+| `vite` | Vite configuration: config, plugins, SSR, library builds, and the Vite 8 Rolldown migration. |
+| `vitest` | Writing tests with Vitest: API, mocking, coverage, filtering, fixtures. |
+| `react-hook-form` | Building and optimizing client-side forms with `useForm`, `useWatch`, `useController`, `useFieldArray`, and validation integration. |
+| `zod` | Zod schema validation best practices: type safety, parsing, error handling, `z.infer`. |
+| [`verify-booking-system`](../.agents/skills/verify-booking-system/SKILL.md) | Run the booking flow in Playwright and save frontend/API verification evidence. |
+| [`review-booking-change`](../.agents/skills/review-booking-change/SKILL.md) | Risk-based review of booking changes; verify findings before fixing them. |
+| [`deliver-booking-pr`](../.agents/skills/deliver-booking-pr/SKILL.md) | Prepare the PR description, open a draft when asked, and monitor CI until handoff. |
 
 ---
 
-## تفاصيل كل Skill
+## Skill details
 
 ### 1. `agent-browser`
 
-- **الوظيفة:** أداة CLI لأتمتة المتصفح بتستخدم Chrome/Chromium عبر CDP، مع لقطات accessibility tree ومراجع عناصر `@eN` للتعامل الموثوق مع الصفحات.
-- **امتى تستخدمه:**
-  - فتح موقع، التنقل بين صفحاته، تعبئة فورم، الضغط على زرار، أو أخذ سكرين شوت.
-  - سحب بيانات من صفحة (scraping) أو اختبار تطبيق ويب (QA / استكشاف / البحث عن bugs).
-  - أتمتة تطبيقات Electron زي VS Code و Slack و Discord و Figma و Notion.
-  - فحص Slack unreads، إرسال رسائل، أو البحث في المحادثات.
-  - تشغيل المتصفح جوه Vercel Sandbox أو AWS Bedrock AgentCore.
-- **ملاحظة مهمة:** هذا الملف مجرد "discovery stub". قبل أي أمر لازم تحمل الدليل الفعلي من الـ CLI:
+- **What it does:** A browser automation CLI using Chrome/Chromium over CDP, with accessibility-tree snapshots and `@eN` element refs for reliable interaction.
+- **When to use it:**
+  - Open a site, navigate, fill a form, click a button, or take a screenshot.
+  - Scrape data or test a web app (QA / exploratory / bug hunting).
+  - Automate Electron apps such as VS Code, Slack, Discord, Figma, Notion.
+  - Check Slack unreads, send messages, or search conversations.
+  - Run a browser inside Vercel Sandbox or AWS Bedrock AgentCore.
+- **Important:** This file is only a "discovery stub". Before any command, load the real guide from the CLI:
   ```bash
   agent-browser skills get core
   ```
-  وفيه أدوات متخصصة زي `electron` و `slack` و `dogfood` و `derive-client`.
+  Specialized guides include `electron`, `slack`, `dogfood`, and `derive-client`.
 
 ### 2. `drizzle`
 
-- **الوظيفة:** دليل أسلوب كتابة schema واستعلامات Drizzle ORM (جداول، أعمدة، indexes، relations، joins، والأنواع المستنتجة).
-- **امتى تستخدمه:**
-  - إضافة أو تعديل جدول/عمود في الـ schema.
-  - كتابة relations و joins واستعلامات Drizzle.
-  - تسمية الجداول والأعمدة بشكل متسق مع الموجود في المشروع.
-- **ملاحظة:** الـ skill ده مسؤول عن **الشكل والأسلوب** بس. أما نشر الـ migrations وتشغيلها فمكانها في `neon-drizzle` / `neon-postgres`. (في الـ description بتاعه مكتوب إن rollout يخص `db-migrations`، وهو مش موجود في المشروع ده — فالمقابل هنا هو `neon-drizzle`.)
+- **What it does:** Style guide for Drizzle schemas and queries (tables, columns, indexes, relations, joins, inferred types).
+- **When to use it:**
+  - Adding or changing a table/column in the schema.
+  - Writing relations, joins, and Drizzle queries.
+  - Naming tables and columns consistently with the existing project.
+- **Note:** This skill covers **style and shape only**. Publishing and running migrations belongs to `neon-drizzle` / `neon-postgres`. (Its description mentions `db-migrations`, which is not installed here — the local equivalent is `neon-drizzle`.)
 
 ### 3. `feature-sliced-design`
 
-- **الوظيفة:** النسخة الرسمية من منهجية Feature-Sliced Design v2.1 specially للـ frontend.
-- **امتى تستخدمه:**
-  - تحديد مكان الكود الجديد (أي طبقة وأي slice): `app/` و `pages/` و `features/` و `entities/` و `shared/`.
-  - تعريف الـ public API لكل slice وضبط حدود الاستيراد (منع الـ cross-imports).
-  - ترتيب الأصول الثابتة (صور، أيقونات، خطوط، PDFs).
-  - القرار بإنشاء أو حذف entity، أو الاستغناء عن طبقة `widgets/` (المنهي عنها).
-  - نقل مشروع من FSD v2.0 أو من هيكل مش FSD، أو دمج FSD مع Vite/React Router/Next/Nuxt.
-  - تطبيق أنماط شائعة زي الـ authentication و API layer و Redux و TanStack Query جوه FSD.
-- **القاعدة الذهبية:** "ابدأ بسيط واستخرج الكود عند الحاجة" — الكود يروح `pages/` أولاً، ومفيش استخراج إلا لما نفس الكود مستخدم في أكتر من مكان دلوقتي، وليه سبب تغيير مستقل، وله مسؤولية واضحة.
-- **التطبيق في المشروع ده:** بنمشي على الحد الأدنى `app/` + `pages/` + `shared/`. شاشة الحجوزات في `pages/bookings` (لأن ليها مستهلك واحد بس)، ومفيش `features/` أو `entities/` أو `widgets/` ولا مجلد `assets` عام. ملفات الـ route في `app/routes/` adapters رقيقة بتفوّض الـ page عبر الـ public API.
+- **What it does:** The official Feature-Sliced Design v2.1 methodology for the frontend.
+- **When to use it:**
+  - Deciding where new code goes (which layer and slice): `app/`, `pages/`, `features/`, `entities/`, `shared/`.
+  - Defining a slice's public API and import boundaries (preventing cross-imports).
+  - Placing static assets (images, icons, fonts, PDFs).
+  - Deciding whether to create or remove an entity, or drop the discouraged `widgets/` layer.
+  - Migrating from FSD v2.0 or a non-FSD structure, or integrating FSD with Vite/React Router/Next/Nuxt.
+  - Applying common patterns such as authentication, an API layer, Redux, and TanStack Query inside FSD.
+- **Golden rule:** "Start simple, extract when needed" — code goes in `pages/` first; extract only when it is used in 2+ places now, has an independent reason to change, and has a focused responsibility.
+- **In this project:** We use the minimum `app/` + `pages/` + `shared/`. The bookings screen lives in `pages/bookings` (single consumer); there is no `features/`, `entities/`, `widgets/`, or general `assets` folder. Route files in `app/routes/` are thin adapters delegating to the page through its public API.
 
 ### 4. `hono`
 
-- **الوظيفة:** معرفة API متكاملة عن Hono وبناء تطبيقاته، مع استخدام Hono CLI للفحص والاختبار بدل سكربتات مؤقتة أو dev server.
-- **امتى تستخدمه:**
-  - بناء API أو تطبيق Hono (ال constructs، routing، middleware، JSX، validation، streaming).
-  - لما الكود يعمل `import ... from 'hono'` أو `'hono/*'`.
-  - لما المستخدم يذكر "Hono" صراحة.
-  - فحص المسارات والردود:
+- **What it does:** Complete reference for building Hono apps, using Hono CLI for inspection/testing instead of ad-hoc scripts or a dev server.
+- **When to use it:**
+  - Building a Hono API or app (constructs, routing, middleware, JSX, validation, streaming).
+  - When code imports from `hono` or `hono/*`.
+  - When the user mentions "Hono" explicitly.
+  - Inspecting routes and responses:
     ```bash
     npx hono routes
     npx hono request /path
@@ -91,137 +93,155 @@
 
 ### 5. `hono-jsx`
 
-- **الوظيفة:** بناء UI لتطبيقات Hono باستخدام `hono/jsx` — SSR أولاً، مع شوية JSX في المتصفح بس لو محتاج حالة (state).
-- **امتى تستخدمه:**
-  - إنشاء صفحات، layouts، forms، أو أجزاء تفاعلية في مشروع Hono.
-  - لما `tsconfig` فيه `"jsxImportSource": "hono/jsx"`، أو الكود يعمل import من `hono/jsx` / `hono/jsx/dom` / `hono/jsx-renderer` / `vite-ssr-components`.
-- **قاعدة صارمة:** **مفيش React هنا** — ما تتثبتش `react` ولا `react-dom`، واكتب `class` مش `className`. (ده مش مطبق في المشروع ده لأن الـ frontend هنا React/Vite.)
+- **What it does:** Building UI for a Hono app with `hono/jsx` — SSR first, with only the interactive parts shipped to the browser.
+- **When to use it:**
+  - Creating pages, layouts, forms, or interactive fragments in a Hono project.
+  - When `tsconfig` has `"jsxImportSource": "hono/jsx"`, or code imports from `hono/jsx`, `hono/jsx/dom`, `hono/jsx-renderer`, or `vite-ssr-components`.
+- **Strict rule:** **No React here** — do not install `react` or `react-dom`, and use `class`, not `className`. (Not applicable in this project, where the frontend is React/Vite.)
 
 ### 6. `hono-void`
 
-- **الوظيفة:** فحص واختبار تطبيقات Void (إطار عمل مبني على Hono، يعتمد على file-based routes ومفيش entry file).
-- **امتى تستخدمه:**
-  - لما `package.json` فيه dependency اسمه `void`، أو فيه `void.config.ts`، أو المستخدم يذكر Void.
-  - اختبار الـ pages والـ page actions والـ API routes عبر Hono CLI:
+- **What it does:** Checking and testing Void apps (a Hono-based framework with file-based routes and no entry file).
+- **When to use it:**
+  - When `package.json` depends on `void`, a `void.config.ts` exists, or the user mentions Void.
+  - Testing pages, page actions, and API routes with Hono CLI:
     ```bash
     npx hono routes --exclude /__void
     npx hono request /
     npx hono browse /
     ```
-- **ملاحظة:** الـ validation failure في page action بترجع 200 مش 422 — لازم تتحقق من `body.errors`. (مش مطبق في المشروع ده حالياً.)
+- **Note:** A page-action validation failure returns 200, not 422 — inspect `body.errors`. (Not currently used in this project.)
 
 ### 7. `neon-drizzle`
 
-- **الوظيفة:** إعداد Drizzle ORM كامل على Neon — تثبيت الحزم، تجهيز بيانات الاتصال، ضبط الـ connection، توليد الـ schema، وتشغيل الـ migrations. النتيجة كود شغال يتصل بقاعدة البيانات فوراً.
-- **امتى تستخدمه:**
-  - عمل مشروع جديد بـ Drizzle (Next.js, Vite, Express, ...).
-  - إضافة Drizzle لتطبيق موجود.
-  - إنشاء أو تعديل database schema.
-  - حل مشاكل الـ migrations.
-- **بيختار تلقائياً** الدليل المناسب حسب السياق: `guides/new-project.md` أو `existing-project.md` أو `schema-only.md` أو `troubleshooting.md`، ويقرر بين HTTP adapter و WebSocket adapter.
+- **What it does:** Full Drizzle-on-Neon setup — installing packages, preparing connection info, configuring the connection, generating the schema, and running migrations. Produces working code that connects immediately.
+- **When to use it:**
+  - Creating a new Drizzle project (Next.js, Vite, Express, ...).
+  - Adding Drizzle to an existing app.
+  - Creating or changing a database schema.
+  - Solving migration problems.
+- **It picks the right guide automatically** based on context: `guides/new-project.md`, `existing-project.md`, `schema-only.md`, or `troubleshooting.md`, and chooses between the HTTP and WebSocket adapters.
 
 ### 8. `neon-postgres`
 
-- **الوظيفة:** أفضل الممارسات للتعامل مع Lakebase Postgres على Neon (قاعدة البيانات اللي المشروع بيستخدمها).
-- **امتى تستخدمه:**
-  - عند وجود `DATABASE_URL` أو العمل بـ SQL / schema / inspect / search.
-  - اختيار نوع الاتصال: pooled للويب والـ serverless، direct للـ migrations.
-  - إدارة الـ branching (schema-only branch، reset-from-parent، branch-per-PR).
-  - الـ autoscaling والـ scale-to-zero والـ instant restore والـ read replicas.
-  - تقليل الفواتير وحجم الـ egress، وحل مشكلة الـ compute المتوقف (SQLSTATE 53000 / HTTP 402).
-  - تحسين `SELECT *` وتقليل الـ overfetching.
-  - البحث: vector search، full-text search، BM25، و hybrid search.
-- **تنبيه:** لو مفيش `DATABASE_URL` أو المشروع جديد، الـ skill بيقول ترجع للأب `neon` (مش مثبت هنا — ممكن تجيبه من `neon skills -s neon -y`). والـ auth يروح `neon-auth` والـ realtime يروح `neon-realtime`.
+- **What it does:** Best practices for Lakebase Postgres on Neon (the database this project uses).
+- **When to use it:**
+  - A `DATABASE_URL` is present, or you are working with SQL / schema / inspect / search.
+  - Choosing a connection type: pooled for web and serverless, direct for migrations.
+  - Managing branches (schema-only branch, reset-from-parent, branch-per-PR).
+  - Autoscaling, scale-to-zero, instant restore, read replicas.
+  - Reducing billing and egress, or fixing a suspended compute (SQLSTATE 53000 / HTTP 402).
+  - Optimizing `SELECT *` and reducing overfetching.
+  - Search: vector, full-text, BM25, and hybrid search.
+- **Heads-up:** With no `DATABASE_URL` or a new project, the skill falls back to the parent `neon` (not installed here — get it with `neon skills -s neon -y`). Auth goes to `neon-auth` and realtime to `neon-realtime`.
 
 ### 9. `tanstack-cli`
 
-- **الوظيفة:** أداة scaffolding لإنشاء تطبيقات TanStack Start مع أكتر من 30 integration (Query، Drizzle، Neon، Clerk، ...)، وخادم MCP لمساعدة الـ agents، وقوالب مخصصة (custom templates).
-- **امتى تستخدمه:** إنشاء مشروع TanStack Start جديد أو تجهيز template للفريق.
-- **ملاحظة:** **مش مستخدم في المشروع ده** — الواجهة هنا React + Vite مش TanStack Start. لو احتجنا نعمل scaffold لمشروع جديد نستخدم `npx @tanstack/cli create <name> --integrations tanstack-query,...`.
+- **What it does:** Scaffolding CLI for TanStack Start with 30+ integrations, an MCP server for agents, and custom templates.
+- **When to use it:** Creating a new TanStack Start project or preparing a team template.
+- **Note:** **Not used in this project** — the frontend is React + Vite, not TanStack Start. For a new scaffold: `npx @tanstack/cli create <name> --integrations tanstack-query,...`.
 
 ### 10. `tanstack-config`
 
-- **الوظيفة:** toolkit لبناء وتحديد إصدارات ونشر حزم JavaScript/TypeScript بجودة عالية.
-- **امتى تستخدمه:** إعداد package للنشر (build، versioning، publishing).
-- **ملاحظة:** **مش مستخدم في المشروع ده** — التطبيق مش حزمة بتتنشر على npm.
+- **What it does:** Toolkit for building, versioning, and publishing high-quality JS/TS packages.
+- **When to use it:** Preparing a package for publication (build, versioning, publishing).
+- **Note:** **Not used in this project** — this app is not an npm package.
 
 ### 11. `tanstack-devtools`
 
-- **الوظيفة:** لوحة devtools واحدة بتجمع Query و Router وإضافات تانية، مع نظام plugins و Vite plugin للإعداد التلقائي.
-- **امتى تستخدمه:**
-  - فحص حالة الـ Query cache والـ Router أثناء التطوير.
-  - إضافة plugin مخصص لتتبع حالة التطبيق.
-- **تفاصيل في المشروع ده:** `@tanstack/react-devtools` مع panel-ين: `ReactQueryDevtoolsPanel` و `TanStackRouterDevtoolsPanel`. بيظهروا في `development` فقط، و`@tanstack/devtools-vite` بيشيل كود الـ devtools من production build.
+- **What it does:** A single devtools panel combining Query, Router, and more, with a plugin system and Vite plugin for automatic setup.
+- **When to use it:**
+  - Inspecting the Query cache and Router state during development.
+  - Adding a custom plugin to track application state.
+- **In this project:** `@tanstack/react-devtools` exposes two panels: `ReactQueryDevtoolsPanel` and `TanStackRouterDevtoolsPanel`. They appear only in `development`, and `@tanstack/devtools-vite` strips devtools code from the production build.
 
 ### 12. `tanstack-query`
 
-- **الوظيفة:** إدارة الـ server state (البيانات اللي على الـ API): fetching، caching، background refetching، mutations، optimistic updates، و pagination/infinite queries.
-- **امتى تستخدمه:**
-  - استبدال `useState`/`useEffect` بتاعة جلب البيانات بـ `useQuery` / `useSuspenseQuery`.
-  - تعريف query keys و `queryOptions` المشتركة، وعمل invalidate بعد الـ mutations.
-  - أي تعديل على استراتيجية الـ caching (staleTime، gcTime، retry، refetch).
-- **نقاط مهمة في الإصدار الحالي (اتأكدنا من المصدر عبر opensrc):**
-  - `queryClient.ensureQueryData` و `queryClient.prefetchQuery` **deprecated** — استخدم `queryClient.query(options)` و `queryClient.query({ ...options, staleTime: 'static' })` على التوالي.
-  - استخدم `queryOptions` عشان الـ key والـ fn يتشاركوا بين `useSuspenseQuery` والـ loader.
-  - لازم `useQueryErrorResetBoundary().reset()` في الـ error component اللي بيستخدم suspense.
+- **What it does:** Server-state management (API data): fetching, caching, background refetching, mutations, optimistic updates, pagination/infinite queries.
+- **When to use it:**
+  - Replacing `useState`/`useEffect` data fetching with `useQuery` / `useSuspenseQuery`.
+  - Defining shared query keys and `queryOptions`, and invalidating after mutations.
+  - Changing caching strategy (staleTime, gcTime, retry, refetch).
+- **Important notes for the current version (verified against source via opensrc):**
+  - `queryClient.ensureQueryData` and `queryClient.prefetchQuery` are **deprecated** — use `queryClient.query(options)` and `queryClient.query({ ...options, staleTime: 'static' })` respectively.
+  - Use `queryOptions` so the key and fn are shared between `useSuspenseQuery` and the route loader.
+  - An error component using suspense must call `useQueryErrorResetBoundary().reset()`.
 
 ### 13. `tanstack-router`
 
-- **الوظيفة:** routing آمن النوع تماماً: file-based routing، route loaders، search params validation، code splitting، وتكامل مع TanStack Query.
-- **امتى تستخدمه:**
-  - إضافة/تعديل route أو layout في `apps/web/src/app/routes/`.
-  - تعديل إعداد الروتر (preloading، scroll restoration، notFound، error components).
-  - دمج الروتر مع Query عبر الـ router context والـ loaders.
-- **تفاصيل في المشروع ده:** file-based routing مفعّل بـ `tanstackRouter()` في `vite.config.ts` (قبل `react()`)، مع `autoCodeSplitting: true`. الملف `src/app/routeTree.gen.ts` مولّد وممنوع التعديل عليه بإيد.
-- **الدمج مع Query:** الـ loader بينادي `queryClient.query({ ...options, staleTime: 'static' })` من الـ context، والمكوّن بيقرأ بنفس الـ `queryOptions` عبر `useSuspenseQuery`.
+- **What it does:** Fully type-safe routing: file-based routes, route loaders, search-param validation, code splitting, and TanStack Query integration.
+- **When to use it:**
+  - Adding or changing a route or layout in `apps/web/src/app/routes/`.
+  - Changing router setup (preloading, scroll restoration, notFound, error components).
+  - Integrating the router with Query via router context and loaders.
+- **In this project:** File-based routing is enabled via `tanstackRouter()` in `vite.config.ts` (before `react()`), with `autoCodeSplitting: true`. `src/app/routeTree.gen.ts` is generated and must never be edited by hand.
+- **Query integration:** The loader calls `queryClient.query({ ...options, staleTime: 'static' })` from context; the component reads the same `queryOptions` via `useSuspenseQuery`.
 
 ### 14. `vite`
 
-- **الوظيفة:** إعداد وضبط Vite — الـ config، الـ plugin API، الـ SSR، بناء المكتبات، وترقية Vite 8 (اللي بيستخدم Rolldown و Oxc بدل esbuild + Rollup).
-- **امتى تستخدمه:**
-  - تعديل `vite.config.ts` (مثل إضافة alias `@` أو plugins).
-  - كتابة Vite plugin أو التعامل مع virtual modules وترتيب الـ plugins.
-  - استخدام `import.meta.glob` و `import.meta.env` و asset queries زي `?raw` و `?url` و HMR API.
-  - بناء library أو SSR middleware.
-  - الترقية إلى Vite 8 وفهم التغييرات.
-- **تفضيلات:** استخدم TypeScript (`vite.config.ts`) و ESM دايماً.
+- **What it does:** Vite setup and configuration — config, plugin API, SSR, library builds, and the Vite 8 migration (Rolldown + Oxc instead of esbuild + Rollup).
+- **When to use it:**
+  - Editing `vite.config.ts` (e.g. the `@` alias or plugins).
+  - Writing a Vite plugin or handling virtual modules and plugin order.
+  - Using `import.meta.glob`, `import.meta.env`, asset queries (`?raw`, `?url`), or HMR APIs.
+  - Building a library or SSR middleware.
+  - Upgrading to Vite 8 and understanding the changes.
+- **Preferences:** Always use TypeScript (`vite.config.ts`) and ESM.
 
 ### 15. `vitest`
 
-- **الوظيفة:** إطار اختبار سريع مبني على Vite، متوافق مع Jest API، مدعوم بالـ TypeScript والـ ESM والـ JSX.
-- **امتى تستخدمه:**
-  - كتابة اختبارات وحدة أو تكامل (`test` / `it` / `describe` / `expect`).
-  - الـ mocking والـ spies والـ fake timers عبر `vi`.
-  - قياس الـ coverage بـ V8 أو Istanbul.
-  - فلترة الاختبارات بالاسم أو بالـ tags، واستخدام الـ fixtures و `test.extend`.
-  - اختبارات الأنواع (`expectTypeOf`) والـ benchmarks والمشاريع المتعددة.
-- **ملاحظة:** الـ Vitest بيشارك نفس الـ config والـ plugins بتاعة Vite، فتعديلات `vite.config.ts` بتأثر على الاختبارات كمان.
+- **What it does:** Fast Vite-powered test framework with a Jest-compatible API, TypeScript and ESM support, and JSX.
+- **When to use it:**
+  - Unit or integration tests (`test` / `it` / `describe` / `expect`).
+  - Mocking, spies, and fake timers via `vi`.
+  - Coverage with V8 or Istanbul.
+  - Filtering tests by name or tags, and using fixtures with `test.extend`.
+  - Type tests (`expectTypeOf`), benchmarks, and multi-project setups.
+- **Note:** Vitest shares Vite's config and plugins, so changes to `vite.config.ts` affect tests too.
+
+### 16. `react-hook-form`
+
+- **What it does:** Performance-focused client-side form validation with `useForm`, `useWatch`, `useController`, `useFieldArray`, the `subscribe()` API, and the Watch / FormStateSubscribe / FieldArray render-prop components. Covers RHF 7.82 additions such as `resetDefaultValues()` and the disabled field-array option.
+- **When to use it:**
+  - Building or optimizing a client-side controlled form (`pages/bookings/ui/BookingForm.tsx`).
+  - Choosing between `useWatch` and `useController` to limit re-renders.
+  - Integrating validation with Zod via `@hookform/resolvers`.
+- **Scope:** Client-side forms only. React 19 Server Actions, `useActionState`, and server-side form handling belong to the `react-19` skill (not installed here).
+
+### 17. `zod`
+
+- **What it does:** Zod schema validation best practices: type safety, parsing, error handling, and `z.infer`.
+- **When to use it:**
+  - Defining `z.object` schemas, adding validations, and using `safeParse`.
+  - Inferring types with `z.infer` / `z.input` / `z.output` at feature boundaries.
+  - Writing form schemas (`pages/bookings/model/booking.ts`) and API request schemas.
+- **Scope:** Schema definition and validation only. React Hook Form integration belongs to `react-hook-form`; OpenAPI client generation is out of scope.
 
 ---
 
-## ربط الـ Skills ببنية المشروع ده
+## How skills map to this project's structure
 
-المشروع (زي ما في [`AGENTS.md`](../AGENTS.md)) مكوّن من React + Vite في `apps/web`، و Hono API في `apps/api`، و Neon Postgres خلف الـ API. الـ skills الأقرب لكل جزء:
+As stated in [`AGENTS.md`](../AGENTS.md): React + Vite in `apps/web`, a Hono API in `apps/api`, and Neon Postgres behind the API. The closest skills per area:
 
-| جزء المشروع | الـ Skills المرتبطة |
+| Project area | Related skills |
 | --- | --- |
-| `apps/web` (React + Vite) | `vite`، `feature-sliced-design`، `vitest`، `agent-browser` لاختبار الواجهة |
-| Routing وبيانات الـ frontend | `tanstack-router`، `tanstack-query`، `tanstack-devtools` |
-| `apps/api` (Hono) | `hono`، و `drizzle` + `neon-drizzle` + `neon-postgres` لطبقة قاعدة البيانات |
-| قاعدة البيانات (Neon Postgres) | `neon-postgres` للإدارة والاستعلامات، `neon-drizzle` للإعداد والـ migrations |
-| اختبارات | `vitest` للوحدة، `agent-browser` للـ E2E/QA، Hono CLI (جوه `hono`) لاختبار الـ API |
-| مراجعة استخدام المكتبات | `opensrc` (أداة مش skill — شوف القسم اللي بعده) |
+| `apps/web` (React + Vite) | `vite`, `feature-sliced-design`, `vitest`, `react-hook-form`, `zod`, `agent-browser` for UI testing |
+| Frontend routing and server state | `tanstack-router`, `tanstack-query`, `tanstack-devtools` |
+| `apps/api` (Hono) | `hono`, plus `drizzle` + `neon-drizzle` + `neon-postgres` for the database layer |
+| Database (Neon Postgres) | `neon-postgres` for management and queries, `neon-drizzle` for setup and migrations |
+| Testing | `vitest` for unit tests, `agent-browser` for manual/E2E QA, Hono CLI (inside `hono`) for API testing |
+| Library usage review | `opensrc` (a tool, not a skill — see the next section) |
 
-أما `hono-jsx` و `hono-void` فهم **مش مستخدمين في الوضع الحالي**؛ بيتحملوا بس لو اتغير الـ frontend من React إلى `hono/jsx` أو لو دخلنا إطار Void. وكمان `tanstack-cli` و `tanstack-config` مش مستخدمين لأننا مش بنعمل scaffold لـ TanStack Start ولا بننشر package.
+`hono-jsx` and `hono-void` are **not used in the current setup**; they load only if the frontend switches from React to `hono/jsx` or we adopt Void. `tanstack-cli` and `tanstack-config` are also unused because we are not scaffolding TanStack Start or publishing a package.
 
 ---
 
-## أداة مساعدة: opensrc
+## Helper tool: opensrc
 
-`opensrc` مش skill، لكنه أداة لجلب مصدر أي package في الـ cache المحلي (`~/.opensrc/`) عشان نراجع الـ implementation والـ docs بتاعتها مش بس الـ types. القواعد الكاملة لاستخدامه في مراجعة الكود موجودة في [`AGENTS.md`](../AGENTS.md) تحت قسم **Source verification in code review (opensrc)**.
+`opensrc` is not a skill, but a tool that caches any package's source locally (`~/.opensrc/`) so we can review its implementation and docs rather than only its types. The full rules for code review are in [`AGENTS.md`](../AGENTS.md), under **Source verification in code review (opensrc)**.
 
 ```powershell
 opensrc path @tanstack/react-query
 opensrc path @tanstack/react-router
-# لو فشل الـ npm registry: opensrc path TanStack/query
+# if the npm registry lookup fails: opensrc path TanStack/query
 ```

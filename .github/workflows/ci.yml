@@ -3,12 +3,16 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 # Both apps have their own lockfile and no root workspace package.
-# Hono route tests mock getDb(), so CI needs no DATABASE_URL secret.
+# Hono route tests mock getDb(), so Web and API need no DATABASE_URL secret.
+# The manual Booking flow job is separate: Playwright needs a real Neon
+# database named booking_system_test (migrated, seeded with service id 1).
+# Store its pooled connection string in the E2E_DATABASE_URL repository secret.
 
 jobs:
   web:
@@ -42,3 +46,52 @@ jobs:
           cache-dependency-path: apps/api/package-lock.json
       - run: npm ci
       - run: npm run verify
+
+  e2e:
+    name: Booking flow — Playwright (manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            apps/web/package-lock.json
+            apps/api/package-lock.json
+      - run: npm ci
+        working-directory: apps/web
+      - run: npm ci
+        working-directory: apps/api
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - name: Configure isolated test database
+        env:
+          E2E_DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${E2E_DATABASE_URL:-}" ]; then
+            echo "::error::Set the E2E_DATABASE_URL secret to a migrated Neon database named booking_system_test."
+            exit 1
+          fi
+          case "$E2E_DATABASE_URL" in
+            *"/booking_system_test?"*|*"/booking_system_test") ;;
+            *) echo "::error::E2E_DATABASE_URL must point to a database named booking_system_test."; exit 1 ;;
+          esac
+          printf 'DATABASE_URL=%s\n' "$E2E_DATABASE_URL" > apps/api/.env.test
+          printf 'DATABASE_URL=%s\n' "$E2E_DATABASE_URL" > apps/api/.env
+      - name: Migrate and seed test database
+        run: |
+          npm run db:migrate
+          npm run db:seed
+        working-directory: apps/api
+      - run: npm run test:e2e -- --trace on
+        working-directory: apps/web
+      - name: Upload Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-trace
+          path: apps/web/test-results/
+          if-no-files-found: warn

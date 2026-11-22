@@ -1,259 +1,260 @@
-# دليل المكتبات المثبّتة في المشروع
+# Installed libraries
 
-## مقدمة
+## Introduction
 
-المشروع فيه مكتبات مثبّتة بالفعل في ملفي `package.json` الخاصين بـ [`apps/web`](../apps/web/package.json) و [`apps/api`](../apps/api/package.json). الهدف من الملف ده إن الـ agent يعرف **إيه الموجود أصلاً**، فيستخدمه بدل ما يحاول يعمل نسخة بنفسه من الصفر أو يجيب بديل (مثلاً يعمل routing بإيده، أو يضيف Express، أو يستخدم Axios بدل الـ fetch الحالي، أو يضيف Jest مع Vitest).
+The libraries below are already installed in the `package.json` files of [`apps/web`](../apps/web/package.json) and [`apps/api`](../apps/api/package.json). The goal of this document is so the agent knows **what already exists** and uses it instead of reinventing it or adding an alternative — e.g. hand-rolling routing, adding Express, bringing in Axios instead of the current `fetch`, or adding Jest alongside Vitest.
 
-> **القاعدة الذهبية:** قبل ما تضيف أي dependency أو تكتب حل مخصص، دور هنا الأول. لو المكتبة موجودة — استخدمها بالطريقة الموثقة في المشروع ده. لو المكتبة مش موجودة ومن غير بديل واضح، اسأل قبل التثبيت.
+> **Golden rule:** Before adding any dependency or writing a custom solution, check here first. If the library exists, use it the way this project documents. If it does not exist and there is no clear alternative, ask before installing.
 
-الإصدارات المذكورة مأخوذة من `package.json` وقت كتابة الملف. لو احتجت تتحقق من سلوك مكتبة أو من API بالضبط، استخدم `opensrc` (شوف قسم **Source verification in code review (opensrc)** في [`AGENTS.md`](../AGENTS.md)) — مصدر الحزمة هو المرجع مش التخمين.
+Versions were taken from `package.json` when this file was written. To verify a library's exact behavior or API, use `opensrc` (see **Source verification in code review (opensrc)** in [`AGENTS.md`](../AGENTS.md)) — the package source is the reference, not guesswork.
 
 ---
 
-## نظرة سريعة
+## Quick reference
 
-| المكتبة | الإصدار | أين | متى تستخدمها (باختصار) |
+| Library | Version | Where | When to use it (short version) |
 | --- | --- | --- | --- |
-| `react` | 19.3.1 | web | بناء كل مكوّنات الواجهة. |
-| `react-dom` | 19.3.1 | web | تصيير التطبيق في الـ DOM (`main.tsx`). |
-| `@tanstack/react-router` | 1.170.46 | web | كل routings و loaders و search params. |
-| `@tanstack/react-query` | 5.108.2 | web | كل بيانات الـ API: fetching/caching/mutations. |
-| `react-hook-form` | 7.92.0 | web | حالة الفورم والتعامل مع الإرسال والأخطاء. |
-| `@hookform/resolvers` | 7.0.8 | web | ربط Zod schema بالفورم (`zodResolver`). |
-| `zod` | 4.6.7 | web + api | تعريف وتحقق الـ schemas في الطرفين. |
-| `hono` | 4.13.16 | api | بناء الـ API وكل route groups. |
-| `@hono/node-server` | 2.1.3 | api | تشغيل تطبيق Hono على Node. |
-| `@hono/zod-validator` | 0.9.1 | api | التحقق من الـ request body بـ Zod middleware. |
-| `drizzle-orm` | 0.45.4 | api | الـ schema والاستعلامات (SELECT/INSERT/...). |
-| `@neondatabase/serverless` | 1.2.1 | api | الـ connection بـ Neon عبر HTTP. |
-| `drizzle-kit` | 0.31.11 | api (dev) | توليد وتشغيل الـ migrations و `db:push`/`studio`. |
-| `vite` | 8.3.6 | web (dev) | الـ dev server والبناء. |
-| `@vitejs/plugin-react` | 6.1.2 | web (dev) | دعم React و Fast Refresh في Vite. |
-| `@tanstack/router-plugin` | 1.169.0 | web (dev) | توليد الـ routes من الملفات و `routeTree.gen.ts`. |
-| `@tanstack/devtools*` | 0.8.7–0.17.0 | web (dev) | لوحة الـ devtools لـ Query و Router. |
-| `typescript` | ~7.0.2 / 7.0.2 | web + api (dev) | الأنواع والـ typecheck في كل الأكواد. |
-| `oxlint` | 1.90.0 / 1.94.0 | web + api (dev) | الـ lint بدل ESLint. |
-| `vitest` | 5.1.1 | web + api (dev) | كل اختبارات الوحدة والتكامل. |
-| `@testing-library/react` | 16.3.3 | web (dev) | اختبار مكوّنات React. |
-| `jsdom` | 31.0.1 | web (dev) | بيئة DOM لاختبارات Vitest. |
-| `@playwright/test` | 1.65.1 | web (dev) | اختبارات E2E. |
-| `tsx` | 4.23.0 | api (dev) | تشغيل سكربتات TypeScript (`dev`, `db:seed`, E2E). |
-| `dotenv` | 18.0.10 | api (dev) | تحميل `.env` / `.env.test`. |
-| `@types/*` | — | web + api (dev) | تعريفات الأنواع لـ React و Node. |
+| `react` | 19.3.1 | web | Building all UI components. |
+| `react-dom` | 19.3.1 | web | Rendering the app into the DOM (`main.tsx`). |
+| `@tanstack/react-router` | 1.170.46 | web | All routing, loaders, and search params. |
+| `@tanstack/react-query` | 5.108.2 | web | All API data: fetching/caching/mutations. |
+| `react-hook-form` | 7.92.0 | web | Form state, submission, and errors. |
+| `@hookform/resolvers` | 7.0.8 | web | Wiring a Zod schema into the form (`zodResolver`). |
+| `zod` | 4.6.7 | web + api | Defining and validating schemas in both apps. |
+| `hono` | 4.13.16 | api | Building the API and every route group. |
+| `@hono/node-server` | 2.1.3 | api | Running the Hono app on Node. |
+| `@hono/zod-validator` | 0.9.1 | api | Validating request bodies with a Zod middleware. |
+| `drizzle-orm` | 0.45.4 | api | Schema and queries (SELECT/INSERT/...). |
+| `@neondatabase/serverless` | 1.2.1 | api | The Neon HTTP connection. |
+| `drizzle-kit` | 0.31.11 | api (dev) | Generating/running migrations, `db:push`, `studio`. |
+| `vite` | 8.3.6 | web (dev) | Dev server and production build. |
+| `@vitejs/plugin-react` | 6.1.2 | web (dev) | React and Fast Refresh support in Vite. |
+| `@tanstack/router-plugin` | 1.169.0 | web (dev) | Generating routes and `routeTree.gen.ts`. |
+| `@tanstack/devtools*` | 0.8.7–5.108.2 (see §8) | web (dev) | Devtools panels for Query and Router. |
+| `typescript` | ~7.0.2 / 7.0.2 | web + api (dev) | Types and typechecking for all code. |
+| `oxlint` | 1.90.0 / 1.94.0 | web + api (dev) | Linting instead of ESLint. |
+| `vitest` | 5.1.1 | web + api (dev) | All unit and integration tests. |
+| `@testing-library/react` | 16.3.3 | web (dev) | Testing React components. |
+| `jsdom` | 31.0.1 | web (dev) | DOM environment for Vitest. |
+| `@playwright/test` | 1.65.1 | web (dev) | End-to-end tests. |
+| `tsx` | 4.23.0 | api (dev) | Running TypeScript scripts (`dev`, `db:seed`, E2E). |
+| `dotenv` | 18.0.10 | api (dev) | Loading `.env` / `.env.test`. |
+| `@types/*` | — | web + api (dev) | Type definitions for React and Node. |
 
 ---
 
-## تفاصيل كل مكتبة
+## Details
 
-### أ) واجهة الويب — `apps/web`
+### A) Web UI — `apps/web`
 
 #### 1. `react` (^19.3.1)
 
-- **الوظيفة:** مكتبة بناء الواجهة. كل المكوّنات في `src/features/**` و `src/app/**` مكوّنات React.
-- **امتى تستخدمه:** أي UI جديد، hooks (`useState`, `useEffect`)، و `Suspense`/`ErrorBoundary` اللي بيستخدمها الـ router والـ Query.
-- **قاعدة:** استخدم hooks بتاعة React عشان حالة الـ UI المحلية فقط. أما بيانات الـ API فـ `react-query` (رقم 4)، وأما حالة الفورم فـ `react-hook-form` (رقم 5). متستخدمش `useState`/`useEffect` عشان تجلب بيانات من الـ API.
+- **What it does:** The UI library. Components live in `src/pages/**` and `src/app/**`.
+- **When to use it:** Any new UI, hooks (`useState`, `useEffect`), and the `Suspense`/`ErrorBoundary` used by the router and Query.
+- **Rule:** Use React hooks for local UI state only. API data goes through `react-query` (#4), and form state through `react-hook-form` (#5). Do not use `useState`/`useEffect` to fetch from the API.
 
 #### 2. `react-dom` (^19.3.1)
 
-- **الوظيفة:** تصيير شجرة React في المتصفح.
-- **تفاصيل في المشروع ده:** مستخدم في `src/app/main.tsx` مع `createRoot`، опять من غير `StrictMode` زي ما هو موجود.
-- **قاعدة:** متضفش مكتبة تصيير تانية، ومتعملش تعديل على ملف الـ entry إلا بسبب واضح.
+- **What it does:** Renders the React tree in the browser.
+- **In this project:** Used in `src/app/main.tsx` with `createRoot`, again without `StrictMode`, as currently written.
+- **Rule:** Do not add another rendering library, and do not modify the entry file without a clear reason.
 
 #### 3. `@tanstack/react-router` (^1.170.46)
 
-- **الوظيفة:** routing آمن النوع مع file-based routes و loaders و search params.
-- **امتى تستخدمه:** إضافة أو تعديل route في `src/app/routes/`.
-- **تفاصيل في المشروع ده:** مفعّل بـ `@tanstack/router-plugin` (رقم 9) مع `autoCodeSplitting`. الـ `routeTree.gen.ts` مولّد — **ممنوع التعديل عليه بإيد**. الـ `router` بيتعمل في `src/app/router.tsx` وياخد الـ `queryClient` من الـ context.
-- **قاعدة:** متكتبش نظام routing مخصص، ومتضفش `react-router-dom` جنبه. الدليل الكامل في skill `tanstack-router`.
+- **What it does:** Type-safe routing with file-based routes, loaders, and search params.
+- **When to use it:** Adding or changing a route in `src/app/routes/`.
+- **In this project:** Enabled by `@tanstack/router-plugin` (#9) with `autoCodeSplitting`. `routeTree.gen.ts` is generated — **never edit it by hand**. The router is created in `src/app/router.tsx` and takes the `queryClient` from its context.
+- **Rule:** Do not write a custom routing system, and do not add `react-router-dom` alongside it. Full guide in the `tanstack-router` skill.
 
 #### 4. `@tanstack/react-query` (^5.108.2)
 
-- **الوظيفة:** إدارة server state: الـ fetching، الـ caching، background refetch، mutations، و Suspense.
-- **امتى تستخدمه:** أي قراءة أو كتابة للـ API.
-- **تفاصيل في المشروع ده:**
-  - `queryOptions` معرّفة في `pages/bookings/api/bookings.queries.ts` وتُشارك بين الـ loader والمكوّن.
-  - الـ loader بينادي `queryClient.query({ ...options, staleTime: 'static' })`؛ المكوّن بيقرأ بـ `useSuspenseQuery`.
-  - `ensureQueryData` و `prefetchQuery` **deprecated** — متستخدمهمش.
-  - error component لازم يعمل `useQueryErrorResetBoundary().reset()` ويعيد via `router.invalidate()` (شوف `src/app/ui/route-error.tsx`).
-- **قاعدة:** متستبدلش بـ SWR أو Redux Toolkit Query أو `useState` + `fetch`. الدليل الكامل في skill `tanstack-query`.
+- **What it does:** Server-state management: fetching, caching, background refetching, mutations, and Suspense.
+- **When to use it:** Any read from or write to the API.
+- **In this project:**
+  - `queryOptions` are defined in `pages/bookings/api/bookings.queries.ts` and shared between the loader and the component.
+  - The loader calls `queryClient.query({ ...options, staleTime: 'static' })`; the component reads with `useSuspenseQuery`.
+  - `ensureQueryData` and `prefetchQuery` are **deprecated** — do not use them.
+  - An error component must call `useQueryErrorResetBoundary().reset()` and retry via `router.invalidate()` (see `src/app/ui/route-error.tsx`).
+- **Rule:** Do not replace it with SWR, Redux Toolkit Query, or `useState` + `fetch`. Full guide in the `tanstack-query` skill.
 
 #### 5. `react-hook-form` (^7.92.0)
 
-- **الوظيفة:** إدارة حالة الفورم (القيم، اللمس، الأخطاء، حالة الإرسال) من غير re-renders زايدة.
-- **امتى تستخدمه:** أي فورم، زي `pages/bookings/ui/BookingForm.tsx`.
-- **تفاصيل في المشروع ده:** بنستخدم `useForm<Values, unknown, Output>` مع `register` و `handleSubmit` و `setError('root.serverError', ...)`. إعادة تعيين الفورم بتحصل بعد ما الـ submit transition يتcommit، مش جوه الـ handler (شوف التعليق في الملف).
-- **قاعدة:** متعملش حالات فورم مخصصة بـ `useState` لكل حقل، ومتضفش Formik. الدليل في skill `react-hook-form`.
+- **What it does:** Form state (values, touched, errors, submitting) without excess re-renders.
+- **When to use it:** Any form, e.g. `pages/bookings/ui/BookingForm.tsx`.
+- **In this project:** We use `useForm<Values, unknown, Output>` with `register`, `handleSubmit`, and `setError('root.serverError', ...)`. The form is reset after the submit transition commits, not inside the handler (see the comment in the file).
+- **Rule:** Do not build per-field form state with `useState`, and do not add Formik. Guide in the `react-hook-form` skill.
 
 #### 6. `@hookform/resolvers` (^7.0.8)
 
-- **الوظيفة:** جسر بين مكتبات الـ validation و React Hook Form.
-- **تفاصيل في المشروع ده:** مستخدم `zodResolver(bookingFormSchema)` في `BookingForm.tsx` — يعني الـ resolver الوحيد المعتمد هو Zod.
-- **قاعدة:** متكتبش resolver بإيدك، ومتستخدمش `yupResolver`/`joiResolver` (Yup و Joi مش مثبتين أصلاً).
+- **What it does:** A bridge between validation libraries and React Hook Form.
+- **In this project:** Used as `zodResolver(bookingFormSchema)` in `BookingForm.tsx` — Zod is the only supported resolver.
+- **Rule:** Do not hand-write a resolver, and do not use `yupResolver`/`joiResolver` (Yup and Joi are not installed).
 
-#### 7. `zod` (^4.6.7 — مشترك بين web و api)
+#### 7. `zod` (^4.6.7 — shared between web and api)
 
-- **الوظيفة:** تعريف الـ schemas والتحقق منها واستنتاج الأنواع.
-- **امتى تستخدمه:** schemas الفورم في `pages/bookings/model/booking.ts`، و schemas الـ request body في routes الـ API.
-- **تفاصيل في المشروع ده:**
-  - استخدم `z.input<typeof schema>` لقيم الفورم الخام و `z.output<typeof schema>` للقيم بعد الـ transform.
-  - في Zod 4 استخدم الأساليب الحديثة: `z.email()` و `z.iso.datetime()` و `z.coerce.number()` و `.pipe()` و `.transform()`.
-  - نفس الإصدار مثبّت في الطرفين — خلي الأنواع متوافقة بين الفورم والـ API.
-- **قاعدة:** متضفش Yup أو Joi أو Valibot، ومتكتبش تحقق يدوي (regex/ if) لما Zod يقدر يعمله. الدليل في skill `zod`.
+- **What it does:** Defining and validating schemas and inferring types.
+- **When to use it:** Form schemas in `pages/bookings/model/booking.ts` and request-body schemas in API routes.
+- **In this project:**
+  - Use `z.input<typeof schema>` for raw form values and `z.output<typeof schema>` for transformed values.
+  - In Zod 4 use the modern APIs: `z.email()`, `z.iso.datetime()`, `z.coerce.number()`, `.pipe()`, `.transform()`.
+  - The same version is installed in both apps — keep types compatible between form and API.
+- **Rule:** Do not add Yup, Joi, or Valibot, and do not hand-write validation (regex/ if) where Zod can do it. Guide in the `zod` skill.
 
 #### 8. `@tanstack/devtools` + `@tanstack/devtools-vite` + `@tanstack/react-devtools` + `@tanstack/react-query-devtools` + `@tanstack/react-router-devtools`
 
-- **الوظيفة:** لوحة devtools موحّدة تجمع Query و Router في panel واحدة أثناء التطوير.
-- **تفاصيل في المشروع ده:**
-  - `devtools()` في `vite.config.ts` بيشيل كود الـ devtools من الـ production build.
-  - `src/app/providers/app-providers.tsx` بيركّب `TanStackDevtools` مع `ReactQueryDevtoolsPanel` و `TanStackRouterDevtoolsPanel`، وبيظهروا بس لما `import.meta.env.MODE === 'development'`.
-- **قاعدة:** متضفش devtools تانية، ومتخليش كود الـ devtools يطلع في production. الدليل في skill `tanstack-devtools`.
+- **What they do:** One unified devtools panel combining Query and Router during development.
+- **Installed versions:** `@tanstack/devtools` 0.17.0, `@tanstack/devtools-vite` 0.8.7, `@tanstack/react-devtools` 0.10.15, `@tanstack/react-query-devtools` 5.108.2, `@tanstack/react-router-devtools` 1.167.4.
+- **In this project:**
+  - `devtools()` in `vite.config.ts` strips devtools code from the production build.
+  - `src/app/providers/app-providers.tsx` mounts `TanStackDevtools` with `ReactQueryDevtoolsPanel` and `TanStackRouterDevtoolsPanel`, visible only when `import.meta.env.MODE === 'development'`.
+- **Rule:** Do not add other devtools, and never let devtools code reach production. Guide in the `tanstack-devtools` skill.
 
-### ب) الـ API وقاعدة البيانات — `apps/api`
+### B) API and database — `apps/api`
 
 #### 9. `hono` (^4.13.16)
 
-- **الوظيفة:** إطار العمل الخاص بالـ API: routing و middleware و validation و JSON responses.
-- **امتى تستخدمه:** أي route group جديد في `src/features/<name>`، وتركيبه في `src/app.ts` عبر `app.route()`.
-- **تفاصيل في المشروع ده:** `app.ts` بيعرّف `AppType = typeof app`، وبي mounting `bookingsRoutes` و `servicesRoutes`.
-- **قاعدة:** متستخدمش Express أو Fastify أو Koa، ومتعملش raw Node `http` handlers. الدليل الكامل في skill `hono`.
+- **What it does:** The API framework: routing, middleware, validation, and JSON responses.
+- **When to use it:** Any new route group in `src/features/<name>`, mounted in `src/app.ts` via `app.route()`.
+- **In this project:** `app.ts` defines `AppType = typeof app` and mounts `bookingsRoutes` and `servicesRoutes`.
+- **Rule:** Do not use Express, Fastify, or Koa, and do not write raw Node `http` handlers. Full guide in the `hono` skill.
 
 #### 10. `@hono/node-server` (^2.1.3)
 
-- **الوظيفة:** يسمح بتشغيل تطبيق Hono (`app.fetch`) على Node.
-- **تفاصيل في المشروع ده:** مستخدم في `src/index.ts` مع `serve(...)` على الـ port من `PORT` أو 3000.
-- **قاعدة:** متستبدلش بـ `@hono/bun` أو `@hono/vercel` إلا لو اتغير هدف النشر.
+- **What it does:** Runs the Hono app (`app.fetch`) on Node.
+- **In this project:** Used in `src/index.ts` with `serve(...)` on the port from `PORT` or 3000.
+- **Rule:** Do not swap in `@hono/bun` or `@hono/vercel` unless the deployment target changes.
 
 #### 11. `@hono/zod-validator` (^0.9.1)
 
-- **الوظيفة:** middleware يربط Zod schema بـ Hono عشان يتحقق من الـ request ويخزّن النتيجة في `c.req.valid('json')`.
-- **تفاصيل في المشروع ده:** `bookingsRoutes.post('/', zValidator('json', createBookingSchema), ...)` في `features/bookings/index.ts`.
-- **قاعدة:** متعملش `schema.parse(await c.req.json())` بإيدك — استخدم الـ middleware عشان الأنواع والـ 422 automatically.
+- **What it does:** Middleware that binds a Zod schema to Hono, validates the request, and exposes the result at `c.req.valid('json')`.
+- **In this project:** `bookingsRoutes.post('/', zValidator('json', createBookingSchema), ...)` in `features/bookings/index.ts`.
+- **Rule:** Do not hand-write `schema.parse(await c.req.json())` — the middleware gives you types and a 422 automatically.
 
 #### 12. `drizzle-orm` (^0.45.4)
 
-- **الوظيفة:** ORM لكتابة الـ schema والاستعلامات بطريقة type-safe.
-- **امتى تستخدمه:** تعريف الجداول في `src/db/schema.ts`، واستعلامات `.select()` / `.insert()` مع `.innerJoin()` و `eq()`.
-- **تفاصيل في المشروع ده:** بنستخدم الـ adapter `drizzle-orm/neon-http`. الاستعلامات كلها جوه الـ route groups عبر `getDb()`.
-- **قاعدة:** متكتبش SQL يدوي بـ `db.execute(raw)` إلا لضرورة، ومتضفش Prisma أو Knex. الدليل في skill `drizzle`.
+- **What it does:** Type-safe ORM for the schema and queries.
+- **When to use it:** Defining tables in `src/db/schema.ts` and `.select()` / `.insert()` queries with `.innerJoin()` and `eq()`.
+- **In this project:** We use the `drizzle-orm/neon-http` adapter. All queries live in route groups via `getDb()`.
+- **Rule:** Do not write raw SQL with `db.execute(...)` except when necessary, and do not add Prisma or Knex. Guide in the `drizzle` skill.
 
 #### 13. `@neondatabase/serverless` (^1.2.1)
 
-- **الوظيفة:** عميل Neon الرسمي للتعامل مع Postgres عبر HTTP (مناسب للـ serverless).
-- **تفاصيل في المشروع ده:** `neon(connectionString)` في `src/db/index.ts` جوه `createDatabase()`، والـ `getDb()` lazy عشان اختبارات الـ routes تشتغل من غير `DATABASE_URL`.
-- **قاعدة:** **_server-only** — متستوردش الحزمة دي أو `drizzle-orm` أو أي حاجة من `apps/api/src/db` جوه `apps/web` (ممنوع بـ `no-restricted-imports` في `.oxlintrc.json`). متضفش `pg` أو `postgres.js`. الدليل في skill `neon-postgres`.
+- **What it does:** Neon's official client for Postgres over HTTP (suited to serverless).
+- **In this project:** `neon(connectionString)` in `src/db/index.ts` inside `createDatabase()`, with lazy `getDb()` so route tests run without `DATABASE_URL`.
+- **Rule:** **Server-only** — never import this package, `drizzle-orm`, or anything from `apps/api/src/db` into `apps/web` (blocked by `no-restricted-imports` in `.oxlintrc.json`). Do not add `pg` or `postgres.js`. Guide in the `neon-postgres` skill.
 
 #### 14. `drizzle-kit` (^0.31.11 — dev)
 
-- **الوظيفة:** أدوات الـ schema: توليد migrations، تطبيقها، `push`، و `studio`.
-- **تفاصيل في المشروع ده:** `drizzle.config.ts` بيشير لـ `src/db/schema.ts` ومخرجاته في `drizzle/`. السكربتات: `db:generate` و `db:migrate` و `db:push` و `db:studio`.
-- **قاعدة:** بعد أي تعديل على الـ schema شغّل `npm run db:generate` واعمل commit للـ SQL الناتج. متكتبش ملفات الـ migrations بإيد. الدليل في skill `neon-drizzle`.
+- **What it does:** Schema tooling: generating and running migrations, `push`, and `studio`.
+- **In this project:** `drizzle.config.ts` points at `src/db/schema.ts` and outputs to `drizzle/`. Scripts: `db:generate`, `db:migrate`, `db:push`, `db:studio`.
+- **Rule:** After any schema change run `npm run db:generate` and commit the generated SQL. Do not hand-write migration files. Guide in the `neon-drizzle` skill.
 
-### ج) البناء والجودة
+### C) Build and quality
 
 #### 15. `vite` (^8.3.6 — dev)
 
-- **الوظيفة:** dev server وبناء الإنتاج لـ `apps/web`.
-- **تفاصيل في المشروع ده:** `vite.config.ts` فيه `tanstackRouter()` قبل `react()`، و alias `@` → `./src`، و proxy `/api` → `http://localhost:3000` مع إزالة البادئة (للـ dev بس).
-- **قاعدة:** استخدم TypeScript config و ESM دايماً. متضفش Webpack أو Parcel. الدليل في skill `vite`.
+- **What it does:** Dev server and production build for `apps/web`.
+- **In this project:** `vite.config.ts` has `tanstackRouter()` before `react()`, the `@` alias → `./src`, and a `/api` proxy → `http://localhost:3000` with the prefix stripped (dev only).
+- **Rule:** Always use TypeScript config and ESM. Do not add Webpack or Parcel. Guide in the `vite` skill.
 
 #### 16. `@vitejs/plugin-react` (^6.1.2 — dev)
 
-- **الوظيفة:** دعم JSX و Fast Refresh لـ React جوه Vite.
-- **قاعدة:** تابع للـ `vite` — متستبدلش بـ `@vitejs/plugin-react-swc` من غير سبب. ترتيب الـ plugins في `vite.config.ts` مهم.
+- **What it does:** JSX and Fast Refresh for React inside Vite.
+- **Rule:** Follows `vite` — do not swap in `@vitejs/plugin-react-swc` without a reason. Plugin order in `vite.config.ts` matters.
 
 #### 17. `@tanstack/router-plugin` (^1.169.0 — dev)
 
-- **الوظيفة:** يولّد شجرة الـ routes من ملفات `src/app/routes/` ويعمل code splitting.
-- **تفاصيل في المشروع ده:** الإعداد في `vite.config.ts`: `target: 'react'`, `autoCodeSplitting: true`، والمخرج `src/app/routeTree.gen.ts`.
-- **قاعدة:** متعدّلش `routeTree.gen.ts` بإيد، ومتعملش route تعريف يدوي جنب الـ file-based routing.
+- **What it does:** Generates the route tree from `src/app/routes/` and performs code splitting.
+- **In this project:** Configured in `vite.config.ts`: `target: 'react'`, `autoCodeSplitting: true`, output `src/app/routeTree.gen.ts`.
+- **Rule:** Never edit `routeTree.gen.ts` by hand, and do not define routes manually alongside file-based routing.
 
-#### 18. `typescript` (~7.0.2 في web / ^7.0.2 في api — dev)
+#### 18. `typescript` (~7.0.2 in web / ^7.0.2 in api — dev)
 
-- **الوظيفة:** الأنواع والـ typecheck.
-- **تفاصيل في المشروع ده:** `npm run build` في web بيشغّل `tsc -b && vite build`، و `npm run typecheck` موجود في الطرفين.
-- **قاعدة:** خلي الإصدار متقارب بين الطرفين، واكتب أنواع صريحة على حدود الـ features. متستخدمش `any` كحل سريع.
+- **What it does:** Types and typechecking.
+- **In this project:** `npm run build` in web runs `tsc -b && vite build`; both apps have a `typecheck` script.
+- **Rule:** Keep versions close across apps and write explicit types at feature boundaries. Do not use `any` as a quick fix.
 
-#### 19. `oxlint` (1.90.0 في web / 1.94.0 في api — dev)
+#### 19. `oxlint` (1.90.0 in web / 1.94.0 in api — dev)
 
-- **الوظيفة:** الـ linter السريع — مستخدم بدل ESLint.
-- **تفاصيل في المشروع ده:** كل app ليها `.oxlintrc.json` وسكربت `lint`. ملف `apps/web/.oxlintrc.json` بيمنع استيرادات الـ server في الـ frontend.
-- **قاعدة:** متضفش ESLint أو Prettier كـ linter جنبه. الدليل في `AGENTS.md` تحت Import boundaries.
+- **What it does:** The fast linter — used instead of ESLint.
+- **In this project:** Each app has its own `.oxlintrc.json` and `lint` script. `apps/web/.oxlintrc.json` blocks server-only imports in the frontend.
+- **Rule:** Do not add ESLint or Prettier as a linter alongside it. See **Import boundaries** in `AGENTS.md`.
 
 #### 20. `tsx` (^4.23.0 — dev)
 
-- **الوظيفة:** تشغيل ملفات TypeScript مباشرة من غير build.
-- **تفاصيل في المشروع ده:** `npm run dev` و `npm run db:seed` في الـ API، و E2E بيشغّل الـ API بـ `--import tsx`.
-- **قاعدة:** متستبدلش بـ `ts-node`، ومتكتبش سكربتات JS منفصلة عشان tsx موجود.
+- **What it does:** Runs TypeScript files directly without a build.
+- **In this project:** `npm run dev` and `npm run db:seed` in the API; E2E starts the API with `--import tsx`.
+- **Rule:** Do not swap in `ts-node`, and do not write separate JS scripts now that `tsx` exists.
 
 #### 21. `dotenv` (^18.0.10 — dev)
 
-- **الوظيفة:** تحميل المتغيرات من `.env` / `.env.test` في `process.env`.
-- **تفاصيل في المشروع ده:** `import 'dotenv/config'` في `src/index.ts` و `drizzle.config.ts`. الـ E2E بيستخدم `node --env-file=.env.test` كمان.
-- **قاعدة:** `DATABASE_URL` يفضل على جهة الـ API بس، وميتكتبش في الكود أو في `apps/web`.
+- **What it does:** Loads variables from `.env` / `.env.test` into `process.env`.
+- **In this project:** `import 'dotenv/config'` in `src/index.ts` and `drizzle.config.ts`. E2E also uses `node --env-file=.env.test`.
+- **Rule:** `DATABASE_URL` stays on the API side only — never in code or in `apps/web`.
 
-### د) الاختبارات
+### D) Tests
 
-#### 22. `vitest` (^5.1.1 — dev، في الطرفين)
+#### 22. `vitest` (^5.1.1 — dev, in both apps)
 
-- **الوظيفة:** إطار الاختبارات السريع المتوافق مع Vitest API.
-- **امتى تستخدمه:** كل اختبارات الوحدة والتكامل في الطرفين (`*.test.ts` / `*.test.tsx`).
-- **تفاصيل في المشروع ده:**
-  - `apps/web/vitest.config.ts` بيعمل `mergeConfig` مع `vite.config.ts` ويضبط `environment: 'jsdom'` و `setupFiles`.
-  - اختبارات الـ API بتعمل mock لـ `getDb()` فمحتاجة `DATABASE_URL`.
-- **قاعدة:** متضفش Jest أو Mocha. استخدم `vi.fn()` / `vi.mock()` للـ mocks (Zod و drizzle و الـ fetch). الدليل في skill `vitest`.
+- **What it does:** The fast test framework, Vitest-API compatible.
+- **When to use it:** All unit and integration tests in both apps (`*.test.ts` / `*.test.tsx`).
+- **In this project:**
+  - `apps/web/vitest.config.ts` merges `vite.config.ts` and sets `environment: 'jsdom'` plus `setupFiles`.
+  - API route tests mock `getDb()`, so they **do not need** `DATABASE_URL`.
+- **Rule:** Do not add Jest or Mocha. Use `vi.fn()` / `vi.mock()` for Zod, drizzle, and `fetch` mocks. Guide in the `vitest` skill.
 
 #### 23. `@testing-library/react` (^16.3.3 — dev)
 
-- **الوظيفة:** اختبار مكوّنات React من وجهة نظر المستخدم (`render`, `screen`, `userEvent`-style queries).
-- **تفاصيل في المشروع ده:** `cleanup()` في `src/test/setup.ts` بعد كل اختبار، مع `window.scrollTo = () => {}` عشان jsdom.
-- **قاعدة:** اختبر السلوك مش تفاصيل الـ implementation، ومتستخدمش Enzyme (مش مثبت).
+- **What it does:** Testing React components from the user's perspective (`render`, `screen`, user-style queries).
+- **In this project:** `cleanup()` in `src/test/setup.ts` after each test, plus `window.scrollTo = () => {}` for jsdom.
+- **Rule:** Test behavior, not implementation details; do not use Enzyme (not installed).
 
 #### 24. `jsdom` (^31.0.1 — dev)
 
-- **الوظيفة:** بيئة DOM وهمية لاختبارات Vitest في الـ web.
-- **قاعدة:** تابع لـ Vitest — متستبدلش بـ happy-dom من غير سبب.
+- **What it does:** A mock DOM environment for Vitest in the web app.
+- **Rule:** Follows Vitest — do not swap in happy-dom without a reason.
 
 #### 25. `@playwright/test` (^1.65.1 — dev)
 
-- **الوظيفة:** اختبارات E2E في المتصفح الحقيقي.
-- **تفاصيل في المشروع ده:** `playwright.config.ts` بيشغّل الـ API والـ web تلقائياً (`webServer`) على `.env.test` و port 5173، والاختبارات في `e2e/*.spec.ts` على Chromium.
-- **قاعدة:** الـ E2E للـ flow الكامل بس (زي حجز booking). متحولش اختبارات الوحدة لـ Playwright. الدليل في skill `agent-browser` للـ QA اليدوي/الاستكشافي.
+- **What it does:** Real-browser end-to-end tests.
+- **In this project:** `playwright.config.ts` starts the API and web servers itself (`webServer`) using `.env.test` on port 5173; specs live in `e2e/*.spec.ts` on Chromium.
+- **Rule:** Playwright is for the full flow only (e.g. creating a booking). Do not move unit tests into Playwright. See the `agent-browser` skill for manual/exploratory QA.
 
-### هـ) الأنواع (dev)
+### E) Types (dev)
 
 #### 26. `@types/react`, `@types/react-dom`, `@types/node`
 
-- **الوظيفة:** تعريفات TypeScript للمكتبات اللي مفيهاش أنواع مدمجة.
-- **تفاصيل في المشروع ده:** `@types/node` موجود في الطرفين بإصدارات مختلفة شوية (24 في web / 26 في api) — متقلقش منه طول ما الـ typecheck نافذ.
-- **قاعدة:** متضفش `@types/*` لمكتبة بتبعت أنواعها بنفسها (زي Zod و Hono و TanStack).
+- **What they do:** TypeScript definitions for libraries without bundled types.
+- **In this project:** `@types/node` is installed in both apps at slightly different versions (24 in web / 26 in api) — this is fine as long as typechecking passes.
+- **Rule:** Do not add `@types/*` for a library that ships its own types (e.g. Zod, Hono, TanStack).
 
 ---
 
-## ربط المكتبات ببنية المشروع ده
+## How libraries map to this project's structure
 
-زي ما في [`AGENTS.md`](../AGENTS.md): React + Vite في `apps/web`، و Hono API في `apps/api`، و Neon Postgres خلف الـ API.
+As stated in [`AGENTS.md`](../AGENTS.md): React + Vite in `apps/web`, a Hono API in `apps/api`, and Neon Postgres behind the API.
 
-| جزء المشروع | المكتبات المعتمدة | لا تضيف بديل عنها |
+| Project area | Approved libraries | Do not add an alternative |
 | --- | --- | --- |
-| `apps/web` UI | `react`, `react-dom`, `@vitejs/plugin-react` | Preact / Solid / تخصيص DOM |
-| `apps/web` routing | `@tanstack/react-router`, `@tanstack/router-plugin` | `react-router-dom` / routing يدوي |
-| `apps/web` server state | `@tanstack/react-query` | SWR / Redux / `fetch` في `useEffect` |
-| `apps/web` forms | `react-hook-form`, `@hookform/resolvers`, `zod` | Formik / Yup / حالة حقل بـ `useState` |
-| `apps/api` | `hono`, `@hono/node-server`, `@hono/zod-validator` | Express / Fastify / تحقق يدوي |
-| قاعدة البيانات | `drizzle-orm`, `@neondatabase/serverless`, `drizzle-kit` | Prisma / `pg` / SQL يدوي |
-| اختبارات الوحدة | `vitest`, `@testing-library/react`, `jsdom` | Jest / Enzyme / happy-dom |
-| اختبارات E2E | `@playwright/test` | Cypress / Puppeteer |
-| البناء والجودة | `vite`, `typescript`, `oxlint`, `tsx`, `dotenv` | Webpack / ESLint / ts-node |
+| `apps/web` UI | `react`, `react-dom`, `@vitejs/plugin-react` | Preact / Solid / custom DOM |
+| `apps/web` routing | `@tanstack/react-router`, `@tanstack/router-plugin` | `react-router-dom` / hand-rolled routing |
+| `apps/web` server state | `@tanstack/react-query` | SWR / Redux / `fetch` in `useEffect` |
+| `apps/web` forms | `react-hook-form`, `@hookform/resolvers`, `zod` | Formik / Yup / per-field `useState` |
+| `apps/api` | `hono`, `@hono/node-server`, `@hono/zod-validator` | Express / Fastify / manual validation |
+| Database | `drizzle-orm`, `@neondatabase/serverless`, `drizzle-kit` | Prisma / `pg` / raw SQL |
+| Unit tests | `vitest`, `@testing-library/react`, `jsdom` | Jest / Enzyme / happy-dom |
+| E2E tests | `@playwright/test` | Cypress / Puppeteer |
+| Build and quality | `vite`, `typescript`, `oxlint`, `tsx`, `dotenv` | Webpack / ESLint / ts-node |
 
 ---
 
-## ملاحظة عن الـ skills
+## Note on skills
 
-المكتبات والـ skills مرتبطين ببعض: الـ skills بتيجي من `.agents/skills` وموثقة في [`SKILLS.md`](SKILLS.md)، أما الملف ده فهو مرجع **للحزم المثبّتة فعلياً**. مثلاً:
+Libraries and skills are linked: skills come from `.agents/skills` and are catalogued in [`SKILLS.md`](SKILLS.md), while this file is the inventory of **actually installed packages**. For example:
 
-- `tanstack-query` / `tanstack-router` / `vite` / `vitest` / `zod` / `react-hook-form` / `drizzle` → skills بتشرح **كيف** تستخدم المكتبات دي.
-- `neon-postgres` / `neon-drizzle` → skills بتشرح إدارة قاعدة البيانات اللي بيوصل لها `@neondatabase/serverless` و `drizzle-kit`.
-- `hono` → skill بيشرح إطار العمل المستخدم في `apps/api`.
-- `agent-browser` → أداة QA للواجهة، مكمّلة لـ `@playwright/test`.
+- `tanstack-query` / `tanstack-router` / `vite` / `vitest` / `zod` / `react-hook-form` / `drizzle` → skills explaining **how** to use these libraries.
+- `neon-postgres` / `neon-drizzle` → skills for managing the database that `@neondatabase/serverless` and `drizzle-kit` connect to.
+- `hono` → skill for the framework used in `apps/api`.
+- `agent-browser` → UI QA tool, complementary to `@playwright/test`.
 
-لو احتجت تتحقق من سلوك أي حزمة، استخدم `opensrc path <package>` (القواعد في [`AGENTS.md`](../AGENTS.md)).
+To verify any package's behavior, use `opensrc path <package>` (rules in [`AGENTS.md`](../AGENTS.md)).
