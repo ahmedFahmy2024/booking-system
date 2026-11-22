@@ -7,8 +7,7 @@ export function useCreateBooking() {
 
   return useMutation({
     mutationFn: createBooking,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: bookingsKeys.list() })
-    },
+    // Returning the promise makes mutateAsync wait for the refetched list.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: bookingsKeys.list() }),
   })
 }
