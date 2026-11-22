@@ -35,6 +35,8 @@ drizzle/      # generated SQL migrations (apps/api)
 
 `apps/web` calls Hono over HTTP. In dev, Vite proxies `/api/*` to `http://localhost:3000` and strips the prefix; set `VITE_API_URL` for other environments (see `apps/web/.env.example`). Booking UI lives in `apps/web/src/features/bookings` and is imported only through its public `index.ts`.
 
+Playwright E2E (`npm run test:e2e` from `apps/web`) boots both apps itself. The API runs with `apps/api/.env.test` pointing at an isolated Neon database; create it once with `CREATE DATABASE booking_system_test`, then migrate and seed it with `DATABASE_URL` from that file. `.env.test` is gitignored — CI needs no database secret unless the E2E job is enabled.
+
 ## Commands
 
 Run from each app directory:
