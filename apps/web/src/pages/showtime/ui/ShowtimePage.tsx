@@ -1,10 +1,9 @@
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { formatCairoDateTime, formatEgp } from '@/shared/lib'
-import { AsyncSection, PosterTransition } from '@/shared/ui'
+import { PosterTransition } from '@/shared/ui'
 import { useShowtime } from '../model/useShowtime'
-import { SeatMapPending } from './SeatMapPending'
-import { SeatMapSection } from './SeatMapSection'
+import { CheckoutForm } from './CheckoutForm'
 
 export function ShowtimePage({ showtimeId }: { showtimeId: string }) {
   const { t, i18n } = useTranslation('catalogue')
@@ -50,9 +49,14 @@ export function ShowtimePage({ showtimeId }: { showtimeId: string }) {
           </PosterTransition>
         )}
       </header>
-      <AsyncSection errorTitle={t('seatMapLoadError')} fallback={<SeatMapPending />}>
-        <SeatMapSection showtimeId={showtimeId} />
-      </AsyncSection>
+      {/* Param-only route navigation reuses this component; keying by showtime
+          clears the draft so one showtime's seats never appear on another. */}
+      <CheckoutForm
+        key={showtimeId}
+        showtimeId={showtimeId}
+        pricePiastres={showtime.pricePiastres}
+        bookingClosed={showtime.bookingClosed}
+      />
     </main>
   )
 }

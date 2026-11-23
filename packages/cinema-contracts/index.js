@@ -45,3 +45,32 @@ export const auditoriumWriteSchema = z.object({
       })
     }),
 })
+
+/** Cinema-wide default; raise or lower this value to reconfigure checkout. */
+export const MAX_BOOKING_SEATS = 6
+
+/**
+ * The request the guest checkout form builds and the confirmation API accepts.
+ * Seat claims themselves are enforced on the server at confirmation, so this
+ * schema only describes the shape and the cinema-wide seat limit.
+ */
+export const checkoutRequestSchema = z.object({
+  showtimeId: z.uuid(),
+  seatIds: z.array(z.uuid())
+    .min(1, { error: 'no_seat_selected' })
+    .max(MAX_BOOKING_SEATS, { error: 'seat_limit' })
+    .superRefine((seatIds, ctx) => {
+      const seen = new Set()
+      seatIds.forEach((id, index) => {
+        if (seen.has(id)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'duplicate_seat',
+            path: [index],
+          })
+        }
+        seen.add(id)
+      })
+    }),
+  customerEmail: z.email(),
+})
