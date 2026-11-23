@@ -22,6 +22,11 @@ export const requireStaff = createMiddleware<AuthEnv>(async (c, next) => {
   if (session.user.banned) {
     return c.json({ error: 'staff_account_inactive' }, 403)
   }
+  // Default deny: only the two staff roles in the permission matrix may use
+  // staff capabilities, even if a session carries an unexpected role.
+  if (session.user.role !== 'admin' && session.user.role !== 'operations') {
+    return c.json({ error: 'forbidden' }, 403)
+  }
 
   c.set('session', session)
   await next()

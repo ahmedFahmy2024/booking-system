@@ -1,4 +1,4 @@
-export type MailKind = 'staff-invitation' | 'password-reset'
+export type MailKind = 'staff-invitation' | 'password-reset' | 'guest-link'
 
 export interface MailMessage {
   to: string

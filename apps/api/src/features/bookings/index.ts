@@ -2,10 +2,26 @@ import { zValidator } from '@hono/zod-validator'
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { webUrl } from '../../auth.js'
+import type { AuthEnv } from '../../auth/middleware.js'
+import { requireStaff } from '../../auth/middleware.js'
 import { getDb } from '../../db/index.js'
 import { bookings, services } from '../../db/schema.js'
+import { rateLimit } from '../../rate-limit.js'
+import {
+  createBookingReference,
+  createGuestCredential,
+  decryptGuestCredential,
+  encryptGuestCredential,
+  guestLinkExpiresAt,
+  guestLinkUrl,
+  guestLinkVerifier,
+  isGuestLinkExpired,
+  verifyGuestLinkVerifier,
+} from '../guest/credentials.js'
+import { sendMail } from '../mail/index.js'
 
-export const bookingsRoutes = new Hono()
+export const bookingsRoutes = new Hono<AuthEnv>()
 
 const createBookingSchema = z.object({
   serviceId: z.number().int().positive(),
@@ -14,7 +30,25 @@ const createBookingSchema = z.object({
   startsAt: z.iso.datetime(),
 })
 
-bookingsRoutes.get('/', async (c) => {
+// The private credential is only ever placed in this email. A delivery failure
+// leaves the booking and its stored link intact so staff can resend it.
+async function sendGuestLink(to: string, reference: string, credential: string): Promise<void> {
+  try {
+    await sendMail({
+      to,
+      subject: 'رابط حجزك الخاص',
+      text: `لعرض تفاصيل حجزك استخدم هذا الرابط الخاص: ${guestLinkUrl(webUrl, reference, credential)}`,
+      kind: 'guest-link',
+    })
+  } catch {
+    // Log only the support reference, never the credential or the link.
+    console.error('Guest link email failed for booking', reference)
+  }
+}
+
+// The list is a staff view of every booking. Operations and admin may read it;
+// a public visitor has no session, and a guest link holder has no staff session.
+bookingsRoutes.get('/', requireStaff, async (c) => {
   const rows = await getDb()
     .select({
       id: bookings.id,
@@ -29,18 +63,99 @@ bookingsRoutes.get('/', async (c) => {
   return c.json(rows)
 })
 
-bookingsRoutes.post('/', zValidator('json', createBookingSchema), async (c) => {
-  const input = c.req.valid('json')
+bookingsRoutes.post(
+  '/',
+  rateLimit('checkout', 30),
+  zValidator('json', createBookingSchema),
+  async (c) => {
+    const input = c.req.valid('json')
+    const startsAt = new Date(input.startsAt)
+    const reference = createBookingReference()
+    const credential = createGuestCredential()
 
-  const [created] = await getDb()
-    .insert(bookings)
-    .values({
-      serviceId: input.serviceId,
-      customerName: input.customerName,
-      customerEmail: input.customerEmail,
-      startsAt: new Date(input.startsAt),
+    const [created] = await getDb()
+      .insert(bookings)
+      .values({
+        serviceId: input.serviceId,
+        customerName: input.customerName,
+        customerEmail: input.customerEmail,
+        startsAt,
+        reference,
+        guestLinkVerifier: guestLinkVerifier(credential),
+        guestLinkEncrypted: encryptGuestCredential(credential),
+        guestLinkExpiresAt: guestLinkExpiresAt(startsAt),
+      })
+      // Never return the verifier, ciphertext or credential to the caller.
+      .returning({
+        id: bookings.id,
+        serviceId: bookings.serviceId,
+        customerName: bookings.customerName,
+        customerEmail: bookings.customerEmail,
+        startsAt: bookings.startsAt,
+        reference: bookings.reference,
+      })
+
+    await sendGuestLink(created.customerEmail, created.reference, credential)
+    return c.json(created, 201)
+  },
+)
+
+// Both operations and admin may resend (permission matrix). The same
+// unexpired credential is decrypted and re-emailed; expiry is never rewritten.
+bookingsRoutes.post('/:id/guest-link/resend', requireStaff, async (c) => {
+  const id = c.req.param('id')
+  const [booking] = await getDb()
+    .select({
+      id: bookings.id,
+      customerEmail: bookings.customerEmail,
+      reference: bookings.reference,
+      startsAt: bookings.startsAt,
+      guestLinkVerifier: bookings.guestLinkVerifier,
+      guestLinkEncrypted: bookings.guestLinkEncrypted,
+      guestLinkExpiresAt: bookings.guestLinkExpiresAt,
     })
-    .returning()
+    .from(bookings)
+    .where(eq(bookings.id, id))
+    .limit(1)
 
-  return c.json(created, 201)
+  if (!booking) {
+    return c.json({ error: 'booking_not_found' }, 404)
+  }
+
+  if (booking.guestLinkVerifier && booking.guestLinkEncrypted) {
+    if (isGuestLinkExpired(booking.guestLinkExpiresAt)) {
+      return c.json({ error: 'guest_link_expired' }, 409)
+    }
+    let credential: string
+    try {
+      credential = decryptGuestCredential(booking.guestLinkEncrypted)
+    } catch {
+      return c.json({ error: 'guest_link_unavailable' }, 500)
+    }
+    if (!verifyGuestLinkVerifier(booking.guestLinkVerifier, credential)) {
+      return c.json({ error: 'guest_link_unavailable' }, 500)
+    }
+    await sendGuestLink(booking.customerEmail, booking.reference, credential)
+    return c.json({ id: booking.id, sent: true })
+  }
+
+  // Backfilled prototype rows have no link yet: issue the first one, with an
+  // expiry derived once from the showtime-start surrogate. No link means no
+  // extension of an existing expiry.
+  const expiresAt = guestLinkExpiresAt(booking.startsAt)
+  if (isGuestLinkExpired(expiresAt)) {
+    return c.json({ error: 'guest_link_expired' }, 409)
+  }
+  const credential = createGuestCredential()
+  await getDb()
+    .update(bookings)
+    .set({
+      guestLinkVerifier: guestLinkVerifier(credential),
+      guestLinkEncrypted: encryptGuestCredential(credential),
+      guestLinkExpiresAt: expiresAt,
+    })
+    .where(eq(bookings.id, booking.id))
+
+  await sendGuestLink(booking.customerEmail, booking.reference, credential)
+  return c.json({ id: booking.id, sent: true })
 })
