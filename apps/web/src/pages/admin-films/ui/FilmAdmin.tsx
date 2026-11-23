@@ -137,6 +137,7 @@ export function FilmAdmin() {
               <Button
                 type="button"
                 variant="outline"
+                disabled={isSubmitting}
                 onClick={() => {
                   setEditingId(null)
                   reset(emptyFilmFormValues())
@@ -168,7 +169,13 @@ export function FilmAdmin() {
                     <span className="text-muted-foreground text-sm" dir="auto">
                       {film.synopsis}
                     </span>
-                    <Button type="button" size="sm" variant="outline" onClick={() => startEdit(film)}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={isSubmitting}
+                      onClick={() => startEdit(film)}
+                    >
                       {t('edit')}
                     </Button>
                   </CardContent>

@@ -104,6 +104,7 @@ export function AuditoriumAdmin() {
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={isSubmitting}
                   onClick={() => {
                     setEditingId(null)
                     reset(emptyAuditoriumFormValues())
@@ -146,6 +147,7 @@ export function AuditoriumAdmin() {
                         type="button"
                         size="sm"
                         variant="outline"
+                        disabled={isSubmitting}
                         onClick={() => startEdit(auditorium)}
                       >
                         {t('edit')}

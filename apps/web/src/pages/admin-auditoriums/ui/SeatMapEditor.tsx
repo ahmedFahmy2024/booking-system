@@ -31,6 +31,7 @@ function SeatRowEditor({
     name: `rows.${rowIndex}.seats`,
   })
   const rowLabel = useWatch({ control, name: `rows.${rowIndex}.rowLabel` }) ?? ''
+  const seatValues = useWatch({ control, name: `rows.${rowIndex}.seats` })
   const rowError = formState.errors.rows?.[rowIndex]?.rowLabel
   const seatError = formState.errors.rows?.[rowIndex]?.seats
 
@@ -60,7 +61,7 @@ function SeatRowEditor({
           <li
             key={seat.id}
             className="flex min-w-28 list-none flex-col gap-1 rounded-md border p-2 text-xs"
-            style={{ marginInlineEnd: seat.aisleAfter ? '1rem' : undefined }}
+            style={{ marginInlineEnd: seatValues?.[seatIndex]?.aisleAfter ? '1rem' : undefined }}
           >
             <span className="font-semibold">
               {normalizeRowLabel(rowLabel)}
@@ -103,6 +104,7 @@ export function SeatMapEditor() {
   const { t } = useTranslation('cinemaAdmin')
   const {
     control,
+    getValues,
     formState: { errors },
   } = useFormContext<AuditoriumFormValues>()
   const {
@@ -110,6 +112,17 @@ export function SeatMapEditor() {
     append,
     remove: removeRow,
   } = useFieldArray({ control, name: 'rows' })
+
+  function addRow() {
+    const usedLabels = new Set(getValues('rows').map((row) => normalizeRowLabel(row.rowLabel)))
+    let index = 0
+    let label = nextRowLabel(index)
+    while (usedLabels.has(label)) {
+      index += 1
+      label = nextRowLabel(index)
+    }
+    append(defaultRow(label))
+  }
 
   return (
     <FieldSet>
@@ -121,11 +134,7 @@ export function SeatMapEditor() {
           ))}
         </ol>
         <div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => append(defaultRow(nextRowLabel(fields.length)))}
-          >
+          <Button type="button" variant="outline" onClick={addRow}>
             {t('addRow')}
           </Button>
           {errors.rows?.message && <FieldError>{t('needRow')}</FieldError>}

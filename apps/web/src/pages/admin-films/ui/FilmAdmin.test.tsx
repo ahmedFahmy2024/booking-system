@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Film } from '../model/film'
 import { FilmAdmin } from './FilmAdmin'
@@ -92,5 +92,24 @@ describe('FilmAdmin', () => {
 
     expect(await screen.findByText(saveError)).toBeDefined()
     expect(screen.getByLabelText('عنوان الفيلم')).toHaveProperty('value', 'New Film')
+  })
+
+  it('keeps edit controls disabled until the pending save completes', async () => {
+    let finishSave: () => void = () => {}
+    mocks.saveFilm.mockReturnValueOnce(new Promise<void>((resolve) => { finishSave = resolve }))
+    render(<FilmAdmin />)
+
+    const edit = screen.getByRole('button', { name: 'تعديل' })
+    fireEvent.click(edit)
+    fireEvent.click(screen.getByRole('button', { name: 'حفظ التعديلات' }))
+    await waitFor(() => expect(mocks.saveFilm).toHaveBeenCalledTimes(1))
+    expect(mocks.saveFilm).toHaveBeenCalledWith(expect.anything(), films[0].id)
+    expect(edit).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'إلغاء التعديل' })).toHaveProperty('disabled', true)
+
+    await act(async () => { finishSave() })
+    expect(edit).toHaveProperty('disabled', false)
+    fireEvent.click(edit)
+    expect(screen.getByLabelText('عنوان الفيلم')).toHaveProperty('value', films[0].title)
   })
 })

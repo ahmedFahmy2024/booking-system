@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuditoriumAdmin } from './AuditoriumAdmin'
 
@@ -7,8 +7,14 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../model/useAuditoriumsAdmin', () => ({
-  useAuditoriumsAdmin: () => ({ auditoriums: [], saveAuditorium: mocks.saveAuditorium }),
+  useAuditoriumsAdmin: () => ({ auditoriums, saveAuditorium: mocks.saveAuditorium }),
 }))
+
+const auditoriums = [{
+  id: 'hall-1',
+  name: 'Existing Hall',
+  seats: [{ id: 'seat-1', rowLabel: 'A', seatNumber: 1, aisleAfter: false, isOutOfService: false }],
+}]
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -54,6 +60,36 @@ describe('AuditoriumAdmin seat-map editor', () => {
     })
   })
 
+  it('updates the preview when the aisle checkbox is toggled', () => {
+    render(<AuditoriumAdmin />)
+    const seat = screen.getByText('A1').closest('li')
+    const aisle = screen.getAllByLabelText('ممر بعد المقعد')[0]
+
+    fireEvent.click(aisle)
+    expect(seat?.style.marginInlineEnd).toBe('1rem')
+
+    fireEvent.click(aisle)
+    expect(seat?.style.marginInlineEnd).toBe('')
+  })
+
+  it('uses a free row label after removing a row and editing a label', async () => {
+    render(<AuditoriumAdmin />)
+    fireEvent.change(screen.getByLabelText('اسم القاعة'), { target: { value: 'Main Hall' } })
+    const addRow = screen.getByRole('button', { name: 'إضافة صف' })
+    fireEvent.click(addRow)
+    fireEvent.click(screen.getAllByRole('button', { name: 'حذف الصف' })[0])
+    fireEvent.click(addRow)
+    expect(screen.getAllByText('B1')).toHaveLength(1)
+    expect(screen.getAllByText('A1')).toHaveLength(1)
+
+    const [firstLabel] = screen.getAllByLabelText('الصف')
+    fireEvent.change(firstLabel, { target: { value: ' c ' } })
+    fireEvent.click(addRow)
+    expect(screen.getByText('B1')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'إضافة القاعة' }))
+    await waitFor(() => expect(mocks.saveAuditorium).toHaveBeenCalledTimes(1))
+  })
+
   it('adds a row with the next label and removes it again', async () => {
     render(<AuditoriumAdmin />)
 
@@ -80,5 +116,25 @@ describe('AuditoriumAdmin seat-map editor', () => {
     expect(await screen.findByText('تعذر الحفظ. حاول مرة أخرى.')).toBeDefined()
     expect(screen.getByText('A11')).toBeDefined()
     expect(screen.getByLabelText('اسم القاعة')).toHaveProperty('value', 'Main Hall')
+  })
+
+  it('prevents switching editors until a pending save fails', async () => {
+    let failSave: (error: Error) => void = () => {}
+    mocks.saveAuditorium.mockReturnValueOnce(new Promise<void>((_, reject) => { failSave = reject }))
+    render(<AuditoriumAdmin />)
+
+    const edit = screen.getByRole('button', { name: 'تعديل' })
+    fireEvent.click(edit)
+    const cancel = screen.getByRole('button', { name: 'إلغاء التعديل' })
+    fireEvent.click(screen.getByRole('button', { name: 'حفظ التعديلات' }))
+    await waitFor(() => expect(mocks.saveAuditorium).toHaveBeenCalledTimes(1))
+    expect(edit).toHaveProperty('disabled', true)
+    expect(cancel).toHaveProperty('disabled', true)
+
+    await act(async () => { failSave(new Error('unavailable')) })
+    expect(await screen.findByText('تعذر الحفظ. حاول مرة أخرى.')).toBeDefined()
+    expect(edit).toHaveProperty('disabled', false)
+    expect(cancel).toHaveProperty('disabled', false)
+    expect(screen.getByLabelText('اسم القاعة')).toHaveProperty('value', 'Existing Hall')
   })
 })
