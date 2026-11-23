@@ -15,5 +15,6 @@ export {
 } from './field'
 export { Input } from './input'
 export { NativeSelect, NativeSelectOption } from './native-select'
+export { PosterTransition } from './poster-transition'
 export { Skeleton } from './skeleton'
 export { Spinner } from './spinner'

@@ -103,6 +103,7 @@ const snapshot = {
 
 const detailRow = (overrides: Record<string, unknown> = {}) => ({
   id: SHOWTIME_ID,
+  filmId: FILM_ID,
   startsAt: STARTS_AT,
   pricePiastres: 2500,
   status: 'published',
@@ -231,6 +232,7 @@ describe('public showtime heading', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({
       id: SHOWTIME_ID,
+      filmId: FILM_ID,
       filmTitle: 'title A',
       synopsis: 'synopsis A',
       posterUrl: null,

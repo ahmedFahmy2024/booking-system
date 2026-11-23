@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { formatCairoDateTime, formatEgp } from '@/shared/lib'
-import { AsyncSection } from '@/shared/ui'
+import { AsyncSection, PosterTransition } from '@/shared/ui'
 import { useShowtime } from '../model/useShowtime'
 import { SeatMapPending } from './SeatMapPending'
 import { SeatMapSection } from './SeatMapSection'
@@ -13,7 +13,7 @@ export function ShowtimePage({ showtimeId }: { showtimeId: string }) {
 
   return (
     <main className="mx-auto flex max-w-[1100px] flex-col gap-6 px-4 py-8">
-      <Link to="/" className="text-primary text-sm underline underline-offset-4">
+      <Link to="/" viewTransition className="text-primary text-sm underline underline-offset-4">
         {t('backToFilms')}
       </Link>
       <header className="flex flex-wrap items-start justify-between gap-6">
@@ -40,12 +40,14 @@ export function ShowtimePage({ showtimeId }: { showtimeId: string }) {
           )}
         </div>
         {showtime.posterUrl && (
-          <img
-            src={showtime.posterUrl}
-            alt=""
-            loading="lazy"
-            className="max-h-56 w-40 rounded-lg object-cover"
-          />
+          <PosterTransition filmId={showtime.filmId}>
+            <img
+              src={showtime.posterUrl}
+              alt=""
+              loading="lazy"
+              className="max-h-56 w-40 rounded-lg object-cover"
+            />
+          </PosterTransition>
         )}
       </header>
       <AsyncSection errorTitle={t('seatMapLoadError')} fallback={<SeatMapPending />}>

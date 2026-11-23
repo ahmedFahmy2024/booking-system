@@ -1,5 +1,6 @@
 export interface ShowtimeDetail {
   id: string
+  filmId: string
   filmTitle: string
   synopsis: string
   posterUrl: string | null

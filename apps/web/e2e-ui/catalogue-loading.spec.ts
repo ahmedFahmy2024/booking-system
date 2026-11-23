@@ -19,6 +19,7 @@ const films = [
 ]
 const detail = {
   id: 'showtime-1',
+  filmId: 'film-1',
   filmTitle: 'Cairo Nights',
   synopsis: 'A story set in Cairo.',
   posterUrl: null,
@@ -57,7 +58,30 @@ async function stubHeadingRoutes(page: import('@playwright/test').Page) {
   await page.route('**/api/showtimes/showtime-1', (route) => route.fulfill({ json: detail }))
 }
 
+/** Mirrors the admin UI spec: record the shared AnimatedSuspense fade marks. */
+async function markSuspenseFades(page: import('@playwright/test').Page) {
+  await page.addInitScript(() => {
+    const start = document.startViewTransition?.bind(document)
+    if (!start) return
+    document.startViewTransition = ((...args: Parameters<typeof start>) => {
+      const transition = start(...args)
+      void transition.ready.then(() => {
+        for (const animation of document.getAnimations()) {
+          if (
+            animation instanceof CSSAnimation &&
+            animation.animationName.startsWith('suspense-fade-')
+          ) {
+            performance.mark(animation.animationName)
+          }
+        }
+      }, () => {})
+      return transition
+    }) as typeof document.startViewTransition
+  })
+}
+
 test('keeps the showtime heading visible while the seat map loads', async ({ page }) => {
+  await markSuspenseFades(page)
   await stubHeadingRoutes(page)
   const gate = Promise.withResolvers<void>()
   await page.route('**/api/showtimes/showtime-1/seat-map', async (route) => {
@@ -76,6 +100,13 @@ test('keeps the showtime heading visible while the seat map loads', async ({ pag
 
   await expect(page.getByRole('button', { name: 'المقعد A1 — متاح' })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: loadingText })).toHaveCount(0)
+  await expect
+    .poll(() => page.evaluate(() =>
+      ['suspense-fade-in', 'suspense-fade-out'].every(
+        (name) => performance.getEntriesByName(name).length > 0,
+      ),
+    ))
+    .toBe(true)
 })
 
 test('retries a failed seat map without losing the heading', async ({ page }) => {

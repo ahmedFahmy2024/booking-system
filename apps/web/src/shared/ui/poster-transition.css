@@ -1,0 +1,14 @@
+/* Named poster morph driven by TanStack Router's native View Transition. */
+::view-transition-group(*) {
+  animation-duration: 320ms;
+  animation-timing-function: ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

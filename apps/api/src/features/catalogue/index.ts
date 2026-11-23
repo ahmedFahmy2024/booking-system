@@ -124,6 +124,7 @@ export const publicShowtimeRoutes = new Hono<AuthEnv>()
     const [row] = await getDb()
       .select({
         id: showtimes.id,
+        filmId: showtimes.filmId,
         startsAt: showtimes.startsAt,
         pricePiastres: showtimes.pricePiastres,
         status: showtimes.status,
@@ -145,6 +146,7 @@ export const publicShowtimeRoutes = new Hono<AuthEnv>()
     const cutoffAt = new Date(row.startsAt.getTime() - BOOKING_CUTOFF_MINUTES * 60_000)
     return c.json({
       id: row.id,
+      filmId: row.filmId,
       filmTitle: row.title,
       synopsis: row.synopsis,
       posterUrl: row.posterUrl,

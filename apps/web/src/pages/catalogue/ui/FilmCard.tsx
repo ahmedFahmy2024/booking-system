@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { formatCairoDateTime, formatEgp } from '@/shared/lib'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/shared/ui'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, PosterTransition } from '@/shared/ui'
 import type { FilmWithShowtimes } from '../model/catalogue'
 
 export function FilmCard({ film }: { film: FilmWithShowtimes }) {
@@ -11,7 +11,14 @@ export function FilmCard({ film }: { film: FilmWithShowtimes }) {
   return (
     <Card className="overflow-hidden">
       {film.posterUrl && (
-        <img src={film.posterUrl} alt="" loading="lazy" className="max-h-64 w-full object-cover" />
+        <PosterTransition filmId={film.id}>
+          <img
+            src={film.posterUrl}
+            alt=""
+            loading="lazy"
+            className="max-h-64 w-full rounded-t-xl object-cover"
+          />
+        </PosterTransition>
       )}
       <CardHeader>
         <CardTitle dir="auto">{film.title}</CardTitle>
@@ -50,6 +57,7 @@ export function FilmCard({ film }: { film: FilmWithShowtimes }) {
                 <Link
                   to="/showtimes/$showtimeId"
                   params={{ showtimeId: showtime.id }}
+                  viewTransition
                   className="text-primary text-sm underline underline-offset-4"
                 >
                   {t('viewSeats')}
