@@ -1,18 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { BookingsPage, bookingsQueries } from '@/pages/bookings'
+import { CataloguePage, catalogueQuery } from '@/pages/catalogue'
 import { RouteError } from '../ui/route-error'
 import { RoutePending } from '../ui/root-layout'
 
 export const Route = createFileRoute('/')({
-  // `queryClient.query` replaced the deprecated ensureQueryData/prefetchQuery.
-  // `staleTime: 'static'` keeps the old ensureQueryData behaviour: use cached
-  // data as-is and only fetch when the cache is empty.
+  // `staleTime: 'static'` keeps cached data on a warm navigation and only
+  // fetches when the cache is empty (see docs/ARCHITECTURE.md).
   loader: ({ context: { queryClient } }) =>
-    Promise.all([
-      queryClient.query({ ...bookingsQueries.list(), staleTime: 'static' }),
-      queryClient.query({ ...bookingsQueries.services(), staleTime: 'static' }),
-    ]),
+    queryClient.query({ ...catalogueQuery(), staleTime: 'static' }),
   pendingComponent: RoutePending,
   errorComponent: RouteError,
-  component: BookingsPage,
+  component: CataloguePage,
 })

@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { auth } from './auth.js'
 import type { AuthEnv } from './auth/middleware.js'
 import { bookingsRoutes } from './features/bookings/index.js'
+import { publicFilmRoutes, publicShowtimeRoutes } from './features/catalogue/index.js'
 import { cinemaAdminRoutes } from './features/cinema-admin/index.js'
 import { guestRoutes } from './features/guest/index.js'
 import { servicesRoutes } from './features/services/index.js'
@@ -19,6 +20,8 @@ app.route('/staff', staffRoutes)
 app.route('/admin', cinemaAdminRoutes)
 app.route('/admin/showtimes', showtimeAdminRoutes)
 app.route('/bookings', bookingsRoutes)
+app.route('/films', publicFilmRoutes)
+app.route('/showtimes', publicShowtimeRoutes)
 app.route('/services', servicesRoutes)
 app.route('/guest', guestRoutes)
 

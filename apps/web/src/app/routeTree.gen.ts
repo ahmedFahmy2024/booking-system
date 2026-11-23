@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminAuditoriumsRouteImport } from './routes/admin/auditoriums'
 import { Route as AdminFilmsRouteImport } from './routes/admin/films'
+import { Route as ShowtimesShowtimeIdRouteImport } from './routes/showtimes.$showtimeId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,50 @@ const AdminFilmsRoute = AdminFilmsRouteImport.update({
   path: '/admin/films',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShowtimesShowtimeIdRoute = ShowtimesShowtimeIdRouteImport.update({
+  id: '/showtimes/$showtimeId',
+  path: '/showtimes/$showtimeId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin/auditoriums': typeof AdminAuditoriumsRoute
   '/admin/films': typeof AdminFilmsRoute
+  '/showtimes/$showtimeId': typeof ShowtimesShowtimeIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin/auditoriums': typeof AdminAuditoriumsRoute
   '/admin/films': typeof AdminFilmsRoute
+  '/showtimes/$showtimeId': typeof ShowtimesShowtimeIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin/auditoriums': typeof AdminAuditoriumsRoute
   '/admin/films': typeof AdminFilmsRoute
+  '/showtimes/$showtimeId': typeof ShowtimesShowtimeIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin/auditoriums' | '/admin/films'
+  fullPaths:
+    '/' | '/admin/auditoriums' | '/admin/films' | '/showtimes/$showtimeId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin/auditoriums' | '/admin/films'
-  id: '__root__' | '/' | '/admin/auditoriums' | '/admin/films'
+  to: '/' | '/admin/auditoriums' | '/admin/films' | '/showtimes/$showtimeId'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin/auditoriums'
+    | '/admin/films'
+    | '/showtimes/$showtimeId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminAuditoriumsRoute: typeof AdminAuditoriumsRoute
   AdminFilmsRoute: typeof AdminFilmsRoute
+  ShowtimesShowtimeIdRoute: typeof ShowtimesShowtimeIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +98,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFilmsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/showtimes/$showtimeId': {
+      id: '/showtimes/$showtimeId'
+      path: '/showtimes/$showtimeId'
+      fullPath: '/showtimes/$showtimeId'
+      preLoaderRoute: typeof ShowtimesShowtimeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +112,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminAuditoriumsRoute: AdminAuditoriumsRoute,
   AdminFilmsRoute: AdminFilmsRoute,
+  ShowtimesShowtimeIdRoute: ShowtimesShowtimeIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

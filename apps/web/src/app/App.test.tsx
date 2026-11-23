@@ -7,13 +7,28 @@ afterEach(() => {
 })
 
 describe('App', () => {
-  it('renders the booking screen with the service catalogue', async () => {
+  it('renders the public film catalogue in Arabic', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
       const path = new URL(url, window.location.origin).pathname
-      if (path.endsWith('/bookings')) return Promise.resolve(Response.json([]))
-      if (path.endsWith('/services')) {
+      if (path.endsWith('/films')) {
         return Promise.resolve(
-          Response.json([{ id: 1, name: 'Standard Screening', durationMinutes: 120 }]),
+          Response.json([
+            {
+              id: 'film-1',
+              title: 'Standard Screening',
+              durationMinutes: 120,
+              synopsis: 'A synopsis',
+              posterUrl: null,
+              showtimes: [
+                {
+                  id: 'showtime-1',
+                  startsAt: '2026-12-01T14:00:00.000Z',
+                  pricePiastres: 2500,
+                  auditoriumName: 'Hall 1',
+                },
+              ],
+            },
+          ]),
         )
       }
       throw new Error(`Unexpected request: ${url}`)
@@ -21,8 +36,8 @@ describe('App', () => {
 
     render(<App />)
 
-    expect(await screen.findByRole('heading', { name: 'حجوزات السينما' })).toBeDefined()
-    expect(await screen.findByRole('option', { name: 'Standard Screening (١٢٠ دقيقة)' })).toBeDefined()
-    expect(screen.getByRole('button', { name: 'تأكيد الحجز' })).toBeDefined()
+    expect(await screen.findByRole('heading', { name: 'الأفلام والعروض' })).toBeDefined()
+    expect(screen.getByText('Standard Screening')).toBeDefined()
+    expect(screen.getByRole('link', { name: 'عرض المقاعد' })).toBeDefined()
   })
 })
