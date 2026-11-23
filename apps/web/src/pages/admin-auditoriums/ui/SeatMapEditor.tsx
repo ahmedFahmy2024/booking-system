@@ -12,6 +12,7 @@ import {
 } from '@/shared/ui'
 import {
   defaultRow,
+  MAX_AUDITORIUM_SEATS,
   nextRowLabel,
   normalizeRowLabel,
   type AuditoriumFormValues,
@@ -112,6 +113,7 @@ export function SeatMapEditor() {
     append,
     remove: removeRow,
   } = useFieldArray({ control, name: 'rows' })
+  const rowsError = errors.rows?.root ?? errors.rows
 
   function addRow() {
     const usedLabels = new Set(getValues('rows').map((row) => normalizeRowLabel(row.rowLabel)))
@@ -137,7 +139,13 @@ export function SeatMapEditor() {
           <Button type="button" variant="outline" onClick={addRow}>
             {t('addRow')}
           </Button>
-          {errors.rows?.message && <FieldError>{t('needRow')}</FieldError>}
+          {rowsError?.message && (
+            <FieldError>
+              {rowsError.message === 'seat_limit'
+                ? t('seatLimit', { limit: MAX_AUDITORIUM_SEATS })
+                : t('needRow')}
+            </FieldError>
+          )}
         </div>
       </FieldGroup>
     </FieldSet>

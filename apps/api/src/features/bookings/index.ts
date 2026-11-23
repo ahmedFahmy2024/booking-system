@@ -26,7 +26,7 @@ export const bookingsRoutes = new Hono<AuthEnv>()
 const createBookingSchema = z.object({
   serviceId: z.number().int().positive(),
   customerName: z.string().min(1),
-  customerEmail: z.string().email(),
+  customerEmail: z.email(),
   startsAt: z.iso.datetime(),
 })
 

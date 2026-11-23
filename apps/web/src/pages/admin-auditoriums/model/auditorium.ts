@@ -38,6 +38,7 @@ export function nextRowLabel(index: number): string {
 }
 
 export const DEFAULT_SEATS_PER_ROW = 10
+export const MAX_AUDITORIUM_SEATS = 2000
 
 export interface SeatDraft {
   seatNumber: number
@@ -75,7 +76,10 @@ const rowDraftSchema = z.object({
 export const auditoriumFormSchema = z
   .object({
     name: z.string().trim().min(1),
-    rows: z.array(rowDraftSchema).min(1),
+    rows: z.array(rowDraftSchema).min(1).refine(
+      (rows) => rows.reduce((total, row) => total + row.seats.length, 0) <= MAX_AUDITORIUM_SEATS,
+      { error: 'seat_limit' },
+    ),
   })
   .superRefine((value, ctx) => {
     const labels = new Set<string>()

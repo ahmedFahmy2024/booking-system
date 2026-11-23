@@ -45,4 +45,16 @@ describe('auditorium form model', () => {
       }).success,
     ).toBe(false)
   })
+
+  it('validates the 2000-seat limit across all rows', () => {
+    const first = defaultRow('A', 1000)
+    const atLimit = { name: 'Hall', rows: [first, defaultRow('B', 1000)] }
+    expect(auditoriumFormSchema.safeParse(atLimit).success).toBe(true)
+
+    const overLimit = { name: 'Hall', rows: [first, defaultRow('B', 1001)] }
+    const result = auditoriumFormSchema.safeParse(overLimit)
+    expect(result.error?.issues).toContainEqual(
+      expect.objectContaining({ path: ['rows'], message: 'seat_limit' }),
+    )
+  })
 })

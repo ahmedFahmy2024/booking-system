@@ -43,9 +43,8 @@ export const bookingFormSchema = z.object({
   customerName: z.string().trim().min(1),
   customerEmail: z.string().trim().pipe(z.email()),
   startsAt: z
-    .string()
-    .min(1)
-    .refine((value) => !Number.isNaN(new Date(value).getTime()))
+    .iso.datetime({ local: true })
+    .refine((value) => !value.endsWith('Z'))
     .transform(toIsoFromLocal),
 })
 

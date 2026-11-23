@@ -47,4 +47,5 @@ export default {
   removeRow: 'Remove row',
   addRow: 'Add row',
   needRow: 'Add at least one row.',
+  seatLimit: 'An auditorium can have at most {{limit}} seats.',
 } as const

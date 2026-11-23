@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { BookingInput } from '../model/booking'
+import { bookingFormSchema, type BookingInput } from '../model/booking'
 import { BookingForm } from './BookingForm'
 
 const services = [{ id: 1, name: 'Standard Screening', durationMinutes: 120 }]
@@ -47,7 +47,7 @@ describe('BookingForm', () => {
     const input = onSubmit.mock.calls[0][0]
     expect(input.serviceId).toBe(1)
     expect(input.customerName).toBe('Ahmed')
-    expect(input.startsAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    expect(input.startsAt).toBe(new Date('2026-12-01T10:00').toISOString())
     await waitFor(() =>
       expect(screen.getByLabelText('اسم العميل')).toHaveProperty('value', ''),
     )
@@ -83,4 +83,19 @@ describe('BookingForm', () => {
     await waitFor(() => expect(screen.queryByText(saveError)).toBeNull())
     expect(onSubmit).toHaveBeenCalledTimes(2)
   })
+})
+
+describe('Booking date validation', () => {
+  it.each(['0', '2026-02-30T10:00', '2026-12-01T10:00:00Z', '2026-12-01T10:00:00+02:00'])(
+    'rejects %s as a datetime-local value',
+    (startsAt) => {
+      const result = bookingFormSchema.safeParse({
+        serviceId: '1',
+        customerName: 'Ahmed',
+        customerEmail: 'ahmed@example.com',
+        startsAt,
+      })
+      expect(result.error?.issues[0]?.path).toEqual(['startsAt'])
+    },
+  )
 })

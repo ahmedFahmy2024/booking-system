@@ -58,4 +58,5 @@ export default {
   removeRow: 'حذف الصف',
   addRow: 'إضافة صف',
   needRow: 'أضف صفًا واحدًا على الأقل.',
+  seatLimit: 'الحد الأقصى للقاعة هو {{limit}} مقعد.',
 } as const
