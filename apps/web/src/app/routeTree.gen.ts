@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminAuditoriumsRouteImport } from './routes/admin/auditoriums'
+import { Route as AdminFilmsRouteImport } from './routes/admin/films'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminAuditoriumsRoute = AdminAuditoriumsRouteImport.update({
+  id: '/admin/auditoriums',
+  path: '/admin/auditoriums',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminFilmsRoute = AdminFilmsRouteImport.update({
+  id: '/admin/films',
+  path: '/admin/films',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin/auditoriums': typeof AdminAuditoriumsRoute
+  '/admin/films': typeof AdminFilmsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/auditoriums': typeof AdminAuditoriumsRoute
+  '/admin/films': typeof AdminFilmsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin/auditoriums': typeof AdminAuditoriumsRoute
+  '/admin/films': typeof AdminFilmsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/admin/auditoriums' | '/admin/films'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/admin/auditoriums' | '/admin/films'
+  id: '__root__' | '/' | '/admin/auditoriums' | '/admin/films'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminAuditoriumsRoute: typeof AdminAuditoriumsRoute
+  AdminFilmsRoute: typeof AdminFilmsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/auditoriums': {
+      id: '/admin/auditoriums'
+      path: '/admin/auditoriums'
+      fullPath: '/admin/auditoriums'
+      preLoaderRoute: typeof AdminAuditoriumsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/films': {
+      id: '/admin/films'
+      path: '/admin/films'
+      fullPath: '/admin/films'
+      preLoaderRoute: typeof AdminFilmsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminAuditoriumsRoute: AdminAuditoriumsRoute,
+  AdminFilmsRoute: AdminFilmsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
