@@ -146,7 +146,7 @@ Applies [D3](#d3--films-seat-maps-and-showtimes) and [D7](#d7--web-behavior-and-
 - [x] **B3.2** Build admin screens to enter film details and configure numbered seat rows, aisles, and out-of-service seats.
 - [x] **B3.3** Add showtime creation, pricing, and publishing with a seating snapshot. Reject overlapping same-auditorium showtimes, including the 15-minute turnaround and simultaneous publish attempts. Allow simultaneous screenings in separate auditoriums.
 - [x] **B3.4** Build the public Arabic RTL film catalogue, showtime list with Cairo time, and seat map for a published showtime. Expose labelled seats and availability through keyboard and screen-reader controls.
-- [ ] **B3.5** Seed an isolated film, auditorium, and showtime for repeatable verification. Exercise the staff publish and customer browse paths, including a showtime with no available seats.
+- [x] **B3.5** Seed an isolated film, auditorium, and showtime for repeatable verification. Exercise the staff publish and customer browse paths, including a showtime with no available seats.
 
 ### B4 — Seat selection and confirmation
 

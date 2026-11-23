@@ -9,7 +9,7 @@ Status follows the [build plan](build-plan.md). Update this file when a slice is
 | B0 | Implemented | The generic prototype has a booking form and list, a service catalogue, Hono endpoints, and a Drizzle migration. It saves a service and a requested time. |
 | B1 | Complete | The user approved the launch scope, booking rules, operating policies, and [D1–D8 implementation decisions](build-plan.md#approved-implementation-decisions). |
 | B2 | Complete | B2.1 defined the [permission matrix](permission-matrix.md), B2.2 added Better Auth staff sign-in, sessions, invitations, and password reset, B2.3 enforced default-deny in the Hono API including the staff booking list, and B2.4 added scoped private guest-link credentials, read-only guest access, staff resend and rate limiting. The prototype list no longer exposes contact details without an access check; the guest-facing page and cancellation remain in B5. |
-| B3 | Partial | Arabic localization and RTL are wired into the current web shell, and admins can manage films and seat maps (B3.2) plus create, price and publish showtimes with an overlap-safe snapshot (B3.3). The public Arabic catalogue, showtime list and keyboard-operable seat map (B3.4) are live; the repeatable cinema seed (B3.5) remains. |
+| B3 | Complete | Arabic localization and RTL are wired into the current web shell, and admins can manage films and seat maps (B3.2) plus create, price and publish showtimes with an overlap-safe snapshot (B3.3). The public Arabic catalogue, showtime list and keyboard-operable seat map (B3.4) are live; B3.5 added a repeatable isolated seed and exercised the publish and browse paths against it, including a showtime with no available seats. |
 | B4 | Planned | Multi-seat booking and confirmation, atomic seat claims, and retry behavior. B0 covers only generic booking persistence. |
 | B5 | Planned | Guest booking retrieval, guest and staff cancellation, and admin showtime cancellation. |
 | B6 | Planned | Show occupancy and staff booking management, including an activity record. |
@@ -30,6 +30,7 @@ Status follows the [build plan](build-plan.md). Update this file when a slice is
 | Admin cinema screens | `npm --prefix apps/api run verify`, `npm --prefix apps/web run verify`, React Doctor, `git diff --check`, agent-browser screenshots and axe a11y audit | B3.2 passed on 2026-11-23: 65 API tests in 9 files and 19 web tests in 6 files; browser evidence under `.booking-work/evidence/b3-2/`; zero a11y violations on both admin screens. No migration, no live DB, no E2E, no commit. Full detail in the B3.2 section below. |
 | Showtime publishing | `npm --prefix apps/api run verify`, `npm --prefix apps/web run verify`, `npm run db:generate`, `npm run db:migrate` and `npx tsx scripts/verify-showtime-overlap.ts` on the isolated `booking_system_test` database | B3.3 passed on 2026-11-23: 86 API tests in 10 files and 32 web tests in 8 files; migrations `0005` and `0006` applied to the isolated unpooled database and the real exclusion constraint verified with overlapping, back-to-back, separate-auditorium, two concurrent, publish-UPDATE and cancelled-release cases; prototype rows unchanged. An independent review found no blocking issues. No production DB, no E2E, no commit. Full detail in the B3.3 section below. |
 | Public catalogue and seat map | `npm --prefix apps/api run verify`, `npm --prefix apps/web run verify`, `npm --prefix apps/web run test:ui`, React Doctor, agent-browser screenshots and axe audit | B3.4 passed on 2026-11-23: 103 API tests in 11 files and 41 web tests in 12 files; 11/11 Chromium UI scenarios (heading-visible loading, section retry, catalogue route-error retry, warm-cache navigation, and three named poster-transition cases); zero axe violations on both public screens; React Doctor clean. No migration, no live DB, no B0 E2E. Full detail in the B3.4 and poster-transition sections below. |
+| Isolated cinema seed and path exercise | `npm --prefix apps/api run db:seed:cinema`, `npm --prefix apps/api run verify:cinema-paths`, both verify commands, `git diff --check`, agent-browser screenshots and axe audit | B3.5 passed on 2026-11-23: repeatable isolated fixture (1 film, 2 auditoriums, 10 seats, 2 drafts); 401/403 publish denials left drafts unchanged; both showtimes published through the real admin route; public reads correct on the mixed and all-out-of-service screens; 103 API and 41 web tests pass; 0 axe violations on three browser pages. Prototype rows unchanged. No migration, no production DB, no B0 E2E, no commit. Full detail below. |
 
 ## B2.3 — API permission enforcement (2026-11-23)
 
@@ -278,6 +279,36 @@ git diff --check                                 # exit 0 (LF→CRLF warnings on
 
 `e2e-ui/poster-transition.spec.ts` asserts: the `poster-film-1` group/old/new pseudo-elements animate on forward navigation and on the back Link; `dir="rtl"` is preserved; keyboard focus is not stranded on the removed link (Tab reaches the back link); reduced motion yields zero-duration animations; and a browser with `startViewTransition` removed renders both screens instantly. No new dependency, schema change, migration, live database or B0 E2E was used.
 
+## B3.5 — Isolated cinema seed and path exercise (2026-11-23)
+
+Acceptance criteria were written to `.booking-work/handoffs/b3-5-isolated-cinema-seed.md` before editing. Each is starting state → action → expected result → evidence.
+
+| ID | Starting state → action → expected result | Evidence |
+| --- | --- | --- |
+| AC1 | Script invoked with a pooled URL or a non-isolated database name → throw before any SQL, print only the database name and pooled flag. | Guard rehearsal in `.booking-work/evidence/b3-5/execution-log.md`: both attempts exited 1 with the refusal message. |
+| AC2 | Isolated DB with 3 services, 6 bookings and no cinema rows; seed twice → exactly 1 film, 2 auditoriums, 10 seats, 2 draft showtimes with NULL snapshots; prototype rows unchanged. | Both `db:seed:cinema` runs returned the same fixture summary; `verify-cinema-schema.ts` was not needed because the counts are asserted inside the script. |
+| AC3 | Two drafts and a dedicated test admin → real `POST /admin/showtimes/:id/publish` → 200 for both with price 2500 and frozen snapshots; anonymous/operations → 401/403 and drafts unchanged; admin retry succeeds. | `verify-cinema-paths.ts` asserts status, snapshot, `getDb` state and prototype counts. |
+| AC4 | Two published showtimes → anonymous `GET /films`, `GET /showtimes/:id`, `GET /showtimes/:id/seat-map` → both showtimes listed with frozen auditorium names; mixed screen 5 available / A2 unavailable; sold-out screen 0 available; draft and unknown ids return the same generic 404. | Assertions and JSON summary from `verify-cinema-paths.ts`. |
+| AC5 | Seeded rows served by the real API → Arabic browser opens the catalogue and both showtime pages → `dir="rtl"`, two `عرض المقاعد` links, labelled seat buttons, sold-out status message; screenshots and axe audit. | `.booking-work/evidence/b3-5/catalogue-ar.png`, `showtime-mixed-ar.png`, `showtime-sold-out-ar.png` and three `*-a11y.json` files with `violations: 0`. |
+| AC6 | Complete change → both verify commands, `git diff --check`, risk review → all green; no migration, production DB, B0 E2E or commit; B3.5 ticked and next action recorded. | Command outputs and risk review below. |
+
+**Changed files:** new `apps/api/scripts/seed-cinema.ts` and `apps/api/scripts/verify-cinema-paths.ts`; two script entries in `apps/api/package.json`; new checkpoint `.booking-work/handoffs/b3-5-isolated-cinema-seed.md` and evidence folder `.booking-work/evidence/b3-5/`; this tracker and the build plan. No web source, schema, migration or existing route changed.
+
+**Verification (exact commands and outcomes, from the repository root):**
+
+```powershell
+npm --prefix apps/api run db:seed:cinema        # twice: identical fixture, prototype rows 3/6
+npm --prefix apps/api run verify:cinema-paths   # after a seed reset
+npm --prefix apps/api run verify                # lint; typecheck; 103 tests in 11 files; build
+npm --prefix apps/web run verify                # three pre-existing advisory fast-refresh warnings;
+                                                # typecheck; 41 tests in 12 files; build
+git diff --check                                # exit 0 (LF→CRLF warnings only)
+```
+
+React Doctor was not run because no web source changed. `npm run test:e2e` was deliberately not run (known B0 gap). The rehearsal left the fixture published in the isolated database for repeatable browsing; re-running `db:seed:cinema` resets it to drafts.
+
+**Risk review (independent reviewer, fresh context, base `c2243f7`):** **no blocking code issue.** The reviewer confirmed the isolation guards validate the exact connection strings the scripts use, the fixed-ID delete/insert is idempotent (seat rows cascade), the rehearsal drives the real Hono routes against the isolated database, denials precede writes, and no schema, migration, production database, web/API source or B0 E2E is involved. One blocking documentation gap was reported — the milestone table and next action still described B3.5 as unstarted; both have been corrected and this section added. Non-blocking outcomes: the rehearsal requires a fresh `db:seed:cinema` before each run and a seed after a mid-run failure (now stated in the script header, evidence log and above); the synthetic test staff accounts use an isolated-only password and are re-enabled by the rehearsal because `verify-auth-flow` bans them (documented in the script header); prototype-row preservation is asserted as before/after equality rather than fixed 3/6 values so later booking tasks are not falsely failed; the fixture dates are fixed in 2030 and need re-seeding after then; and the guard's exact database-name and `-pooler` heuristics are intentionally strict for this isolated setup. The rehearsal guard was re-run with a wrong database name and exited 1 before any route call. Recovery: re-run `db:seed:cinema` to reset drafts and prototype rows are untouched.
+
 ## Next action
 
-Start **B3.5** in the [films, auditoriums and showtimes checklist](build-plan.md#b3--films-auditoriums-and-showtimes): seed an isolated film, auditorium and showtime for repeatable verification. Exercise the staff publish path and the customer browse path from B3.4, including a showtime whose seats are all out of service. Keep the known B0 Playwright gap in view; do not run the old E2E until B4 replaces the booking journey and B5 adds the guest-link page.
+Start **B4.1** in the [seat selection and confirmation checklist](build-plan.md#b4--seat-selection-and-confirmation): build multi-seat selection with the EGP unit price and total, collect the guest email, and enforce the configured six-seat maximum. Keep the known B0 Playwright gap in view; do not run the old E2E until B4 replaces the booking journey and B5 adds the guest-link page.
