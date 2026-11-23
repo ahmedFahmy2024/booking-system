@@ -213,7 +213,7 @@ The agent loads a skill automatically when the task matches the **description** 
   - Building or optimizing a client-side controlled form (`pages/bookings/ui/BookingForm.tsx`).
   - Choosing between `useWatch` and `useController` to limit re-renders.
   - Integrating validation with Zod via `@hookform/resolvers`.
-- **Scope:** Client-side forms only. React 19 Server Actions, `useActionState`, and server-side form handling belong to the `react-19` skill (not installed here).
+- **Scope:** Client-side form validation. For React's form and Action APIs, see [Forms, Actions, and mutations](REACT-FEATURES.md#forms-actions-and-mutations).
 
 ### 17. `zod`
 
@@ -242,7 +242,7 @@ The agent loads a skill automatically when the task matches the **description** 
 
 - **What it does:** Composition patterns for flexible React components: avoid boolean-prop proliferation with compound components, lift state into providers, define generic `state`/`actions`/`meta` context interfaces, prefer explicit variants and `children` over render props.
 - **When to use it:** Refactoring a component with many booleans (`isThread`, `isEditing`, ...), designing a reusable component API, reviewing component architecture, or working with compound components/context providers.
-- **React 19 note:** Use `ref` as a regular prop instead of `forwardRef`, and `use()` instead of `useContext()`. This project is on React 19.3.1, so these apply.
+- **React 19 note:** Function components can accept `ref` as a prop. See [State and composition](REACT-FEATURES.md#state-and-composition) for when to use `useContext` or `use`.
 - **In this project:** Advisory guidance for component internals. It does **not** override [Feature-Sliced Design](https://feature-sliced.github.io/documentation/) placement: code still goes in `pages/<slice>/ui` and is exposed through that slice's `index.ts`. Detailed rule files live inside the skill folder; a compiled `AGENTS.md` there is reference only — do not edit it.
 
 ### 21. `vercel-react-best-practices`
@@ -294,7 +294,7 @@ As stated in [`AGENTS.md`](../AGENTS.md): React + Vite in `apps/web`, a Hono API
 
 ## Helper tool: opensrc
 
-`opensrc` is not a skill, but a tool that caches any package's source locally (`~/.opensrc/`) so we can review its implementation and docs rather than only its types. The full rules for code review are in [`AGENTS.md`](../AGENTS.md), under **Source verification in code review (opensrc)**.
+`opensrc` caches package source locally (`~/.opensrc/`) for reading implementation and docs. See [source verification in the architecture reference](ARCHITECTURE.md#source-verification-in-code-review-opensrc).
 
 ```powershell
 opensrc path @tanstack/react-query

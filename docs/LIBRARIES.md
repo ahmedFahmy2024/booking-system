@@ -6,7 +6,7 @@ The libraries below are already installed in the `package.json` files of [`apps/
 
 > **Golden rule:** Before adding any dependency or writing a custom solution, check here first. If the library exists, use it the way this project documents. If it does not exist and there is no clear alternative, ask before installing.
 
-Versions were taken from `package.json` when this file was written. To verify a library's exact behavior or API, use `opensrc` (see **Source verification in code review (opensrc)** in [`AGENTS.md`](../AGENTS.md)) — the package source is the reference, not guesswork.
+Versions were taken from `package.json` when this file was written. For exact library behavior, check the installed version's source with [`opensrc`](ARCHITECTURE.md#source-verification-in-code-review-opensrc).
 
 ---
 
@@ -64,13 +64,12 @@ Versions were taken from `package.json` when this file was written. To verify a 
 #### 1. `react` (^19.3.1)
 
 - **What it does:** The UI library. Components live in `src/pages/**` and `src/app/**`.
-- **When to use it:** Any new UI, hooks (`useState`, `useEffect`), and the `Suspense`/`ErrorBoundary` used by the router and Query.
-- **Rule:** Use React hooks for local UI state only. API data goes through `react-query` (#4), and form state through `react-hook-form` (#5). Do not use `useState`/`useEffect` to fetch from the API.
+- **When to use it:** Use the [React feature guide](REACT-FEATURES.md) to choose APIs for components, state, Effects, Actions, transitions, and rendering. API server state goes through TanStack Query (#4), and validated forms use React Hook Form (#5).
 
 #### 2. `react-dom` (^19.3.1)
 
 - **What it does:** Renders the React tree in the browser.
-- **In this project:** Used in `src/app/main.tsx` with `createRoot`, again without `StrictMode`, as currently written.
+- **In this project:** `src/app/main.tsx` renders the app with `createRoot` and `<StrictMode>`.
 - **Rule:** Do not add another rendering library, and do not modify the entry file without a clear reason.
 
 #### 3. `@tanstack/react-router` (^1.170.46)
@@ -296,5 +295,3 @@ A skill being installed does **not** mean its library is installed:
 - `shadcn` and `tailwind-design-system` are installed in `apps/web`: `components.json` exists, Tailwind v4 + shadcn components live under `apps/web/src/app/styles/` and `apps/web/src/shared/ui/`. See section F for the setup and rules.
 - `vercel-react-view-transitions` needs no new package: React 19.3.1 already ships `<ViewTransition>` and `addTransitionType`. Browser support is Chromium 125+, Firefox 144+, Safari 18.2+, with graceful degradation.
 - `vercel-composition-patterns` and `vercel-react-best-practices` are advisory. Their Next.js/SWR/RSC rules do not apply to this React + Vite + TanStack Query app; where they conflict with this repository's conventions, [`AGENTS.md`](../AGENTS.md) and this file win.
-
-To verify any package's behavior, use `opensrc path <package>` (rules in [`AGENTS.md`](../AGENTS.md)).

@@ -1,32 +1,7 @@
-# React + TypeScript + Vite
+# Booking system web app
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The web app uses React and Vite. In development, Vite proxies `/api` requests to the Hono API. See the [architecture reference](../../docs/ARCHITECTURE.md#frontend--api) for proxy configuration.
 
-Currently, two official plugins are available:
+From `apps/web`, run `npm run dev` to start Vite or `npm run verify` to run lint, type checking, tests, and the production build.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Use the [React feature guide](../../docs/REACT-FEATURES.md) to choose React APIs and the [development workflow](../../docs/WORKFLOW.md) to verify behavior changes.

@@ -3,6 +3,7 @@
 This repository contains a React + Vite web app in `apps/web` and a Hono API in `apps/api`. The web app reaches Neon Postgres through the API.
 
 - **Feature or fix.** Check the [approved decisions and phase tasks](docs/build-plan.md#approved-implementation-decisions), then follow [the development workflow](docs/WORKFLOW.md) for acceptance criteria and verification. Use the [progress tracker](docs/progress-tracker.md) to pick up the current task.
+- **React features.** Before implementing or refactoring React UI, check the relevant section of [the React feature guide](docs/REACT-FEATURES.md) to choose an API supported by the installed version.
 - **Architecture or local setup.** Read [the architecture reference](docs/ARCHITECTURE.md) for slice and import boundaries, web/API integration, database commands, and dependency-source review.
 - **Project skills.** Load the relevant [listed skills](docs/SKILLS.md). Check the [dependency inventory](docs/LIBRARIES.md) before adding a library.
 - **Booking behavior.** Use [`verify-booking-system`](.agents/skills/verify-booking-system/SKILL.md) for browser evidence.
