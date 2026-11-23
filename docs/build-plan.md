@@ -99,6 +99,19 @@ D1–D8 were approved on 2026-11-22. Use them with the launch, booking, and oper
 - Verify migration and restore in staging, check readiness and booking and email failures, and keep operational logs free of guest links and contact details. Production domain, sender verification, service credentials, and release approval are provisioning inputs. The code and staging workflows use configuration while those inputs are pending.
 - Start each task from its approved decisions. Choose reversible details such as file names, component composition, and query names using the existing [code standards](code-standards.md). Record new decisions with user-visible, access, or data effects in this plan. Escalate only when a new requirement conflicts with approved rules or an external action requires authorization.
 
+## Frontend techniques by phase
+
+Use the [React feature guide](REACT-FEATURES.md) to check browser support, state ownership, and verification for these techniques.
+
+| When | Technique and verification |
+| --- | --- |
+| [B3.4](#b3--films-auditoriums-and-showtimes) | Use the shared `AsyncSection` for the seat map if its request can resolve independently of the showtime heading. Keep the heading visible on a slow response or a failed map request. Verify loading, section retry, and a warm-cache navigation in Chromium. |
+| After [B3.4](#b3--films-auditoriums-and-showtimes), once both screens show the same poster | Prototype a named React `ViewTransition` between the catalogue poster and the showtime page. Verify forward and back navigation, RTL, focus, reduced motion, and an instant fallback when the browser lacks support. |
+| [B6.1](#b6--staff-operations) | Store staff list filters and pagination in TanStack Router search params with `validateSearch` and `loaderDeps`. Include them in the Query key. Keep the current results visible while a replacement loads and verify back, forward, and reload. |
+| When an editor has tabs and an unsaved draft must survive switching tabs | Consider React `Activity`. Verify that the draft survives and that Effects clean up while its tab is hidden. |
+| When a small, independent form can own its Action state | Consider `useActionState` and `useFormStatus` for the result and submit status. Verify errors, retry, and input preservation. Validated booking and admin forms continue to use React Hook Form and Zod. |
+| When an interaction has a reversible, local pending state | Consider `useOptimistic`. Use TanStack Query for shared cached records and show a confirmed seat claim only after the API succeeds. Verify reconciliation on failure. |
+
 ## Phase checklists
 
 Mark a task complete when its stated behavior is implemented and its relevant check has passed. Use the [progress tracker](progress-tracker.md) for the result and evidence.

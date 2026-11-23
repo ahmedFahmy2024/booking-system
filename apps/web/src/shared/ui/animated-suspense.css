@@ -1,0 +1,24 @@
+::view-transition-old(.suspense-fallback) {
+  animation: 160ms ease-out both suspense-fade-out;
+}
+
+::view-transition-new(.suspense-content) {
+  animation: 160ms ease-out both suspense-fade-in;
+}
+
+@keyframes suspense-fade-in {
+  from { opacity: 0; }
+}
+
+@keyframes suspense-fade-out {
+  to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.suspense-fallback),
+  ::view-transition-new(.suspense-content),
+  ::view-transition-group(.suspense-fallback),
+  ::view-transition-group(.suspense-content) {
+    animation: none;
+  }
+}

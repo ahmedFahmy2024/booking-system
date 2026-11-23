@@ -1,6 +1,21 @@
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { AsyncSection, Skeleton } from '@/shared/ui'
 import { FilmAdmin } from './FilmAdmin'
+
+function FilmsPending() {
+  const { t } = useTranslation('common')
+
+  return (
+    <div role="status">
+      <span className="sr-only">{t('loading')}</span>
+      <div aria-hidden="true" className="grid gap-6 min-[701px]:grid-cols-[minmax(280px,1fr)_minmax(280px,1.1fr)]">
+        <Skeleton className="h-96 w-full motion-reduce:animate-none" />
+        <Skeleton className="h-40 w-full motion-reduce:animate-none" />
+      </div>
+    </div>
+  )
+}
 
 export function FilmsAdminPage() {
   const { t } = useTranslation('cinemaAdmin')
@@ -16,7 +31,9 @@ export function FilmsAdminPage() {
           {t('auditoriumsLink')}
         </Link>
       </div>
-      <FilmAdmin />
+      <AsyncSection errorTitle={t('filmsLoadError')} fallback={<FilmsPending />}>
+        <FilmAdmin />
+      </AsyncSection>
     </main>
   )
 }

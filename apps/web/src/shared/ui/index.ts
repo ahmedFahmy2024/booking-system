@@ -1,4 +1,5 @@
 export { Alert, AlertAction, AlertDescription, AlertTitle } from './alert'
+export { AsyncSection } from './async-section'
 export { Badge } from './badge'
 export { Button } from './button'
 export { Card, CardContent, CardFooter, CardHeader, CardTitle } from './card'
