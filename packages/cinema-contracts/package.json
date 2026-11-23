@@ -1,0 +1,11 @@
+{
+  "name": "@booking-system/cinema-contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./index.js",
+  "files": ["index.js"],
+  "peerDependencies": {
+    "zod": "^4.6.7"
+  }
+}
