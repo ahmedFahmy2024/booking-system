@@ -2,34 +2,18 @@ import { describe, expect, it } from 'vitest'
 import {
   auditoriumFormSchema,
   defaultRow,
-  filmFormSchema,
   nextRowLabel,
   normalizeRowLabel,
   toAuditoriumInput,
-} from './cinema'
+} from './auditorium'
 
-describe('cinema admin form model', () => {
+describe('auditorium form model', () => {
   it('normalises row labels and generates spreadsheet-style labels', () => {
     expect(normalizeRowLabel(' a ')).toBe('A')
     expect(nextRowLabel(0)).toBe('A')
     expect(nextRowLabel(25)).toBe('Z')
     expect(nextRowLabel(26)).toBe('AA')
     expect(defaultRow('B', 2).seats.map((seat) => seat.seatNumber)).toEqual([1, 2])
-  })
-
-  it('parses the film form into API-shaped values', () => {
-    const parsed = filmFormSchema.parse({
-      title: 'Cairo Nights',
-      durationMinutes: '120',
-      synopsis: 'A story.',
-      posterUrl: '',
-    })
-    expect(parsed.durationMinutes).toBe(120)
-    expect(parsed.posterUrl).toBeNull()
-    expect(filmFormSchema.safeParse({ ...parsed, durationMinutes: '0' }).success).toBe(false)
-    expect(
-      filmFormSchema.safeParse({ ...parsed, posterUrl: 'not-a-url' }).success,
-    ).toBe(false)
   })
 
   it('flattens rows into normalised, numbered seats', () => {

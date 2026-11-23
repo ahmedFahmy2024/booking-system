@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   saveAuditorium: vi.fn(),
 }))
 
-vi.mock('../model/useCinemaAdmin', () => ({
+vi.mock('../model/useAuditoriumsAdmin', () => ({
   useAuditoriumsAdmin: () => ({ auditoriums: [], saveAuditorium: mocks.saveAuditorium }),
 }))
 

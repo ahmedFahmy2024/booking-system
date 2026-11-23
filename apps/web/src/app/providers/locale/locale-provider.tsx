@@ -1,4 +1,4 @@
-import { DirectionProvider } from '@/shared/ui/direction'
+import { DirectionProvider } from '@/shared/ui'
 import { useLayoutEffect, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 

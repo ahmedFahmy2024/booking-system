@@ -1,7 +1,7 @@
 import { Outlet } from '@tanstack/react-router'
 import { Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Skeleton } from '@/shared/ui/skeleton'
+import { Skeleton } from '@/shared/ui'
 
 export function RoutePending() {
   const { t } = useTranslation('common')

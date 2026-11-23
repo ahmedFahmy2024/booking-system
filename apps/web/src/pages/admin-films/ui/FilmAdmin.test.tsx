@@ -1,13 +1,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Film } from '../model/cinema'
+import type { Film } from '../model/film'
 import { FilmAdmin } from './FilmAdmin'
 
 const mocks = vi.hoisted(() => ({
   saveFilm: vi.fn(),
 }))
 
-vi.mock('../model/useCinemaAdmin', () => ({
+vi.mock('../model/useFilmsAdmin', () => ({
   useFilmsAdmin: () => ({ films, saveFilm: mocks.saveFilm }),
 }))
 

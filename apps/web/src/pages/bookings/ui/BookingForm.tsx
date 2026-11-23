@@ -2,13 +2,24 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Alert, AlertDescription } from '@/shared/ui/alert'
-import { Button } from '@/shared/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/shared/ui/card'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/shared/ui/field'
-import { Input } from '@/shared/ui/input'
-import { NativeSelect, NativeSelectOption } from '@/shared/ui/native-select'
-import { Spinner } from '@/shared/ui/spinner'
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  Input,
+  NativeSelect,
+  NativeSelectOption,
+  Spinner,
+} from '@/shared/ui'
 import {
   bookingFormSchema,
   type BookingFormOutput,

@@ -1,13 +1,5 @@
 import { z } from 'zod'
 
-export interface Film {
-  id: string
-  title: string
-  durationMinutes: number
-  synopsis: string
-  posterUrl: string | null
-}
-
 export interface Seat {
   id: string
   rowLabel: string
@@ -20,13 +12,6 @@ export interface Auditorium {
   id: string
   name: string
   seats: Seat[]
-}
-
-export interface FilmInput {
-  title: string
-  durationMinutes: number
-  synopsis: string
-  posterUrl: string | null
 }
 
 export type SeatInput = Omit<Seat, 'id'>
@@ -76,23 +61,6 @@ export function defaultRow(rowLabel: string, seatCount = DEFAULT_SEATS_PER_ROW):
   }
 }
 
-// The form keeps raw strings for the duration and flattened rows for the grid;
-// the resolver returns the API-shaped values.
-export const filmFormSchema = z.object({
-  title: z.string().trim().min(1),
-  durationMinutes: z.string().trim().min(1).transform(Number).pipe(z.number().int().positive()),
-  synopsis: z.string().trim().min(1),
-  posterUrl: z
-    .string()
-    .trim()
-    .optional()
-    .transform((value) => (value ? value : null))
-    .pipe(z.url().nullable()),
-})
-
-export type FilmFormValues = z.input<typeof filmFormSchema>
-export type FilmFormOutput = z.output<typeof filmFormSchema>
-
 const seatDraftSchema = z.object({
   seatNumber: z.number().int().positive(),
   aisleAfter: z.boolean(),
@@ -138,19 +106,6 @@ export const auditoriumFormSchema = z
 
 export type AuditoriumFormValues = z.input<typeof auditoriumFormSchema>
 export type AuditoriumFormOutput = z.output<typeof auditoriumFormSchema>
-
-export function toFilmFormValues(film: Film): FilmFormValues {
-  return {
-    title: film.title,
-    durationMinutes: String(film.durationMinutes),
-    synopsis: film.synopsis,
-    posterUrl: film.posterUrl ?? '',
-  }
-}
-
-export function emptyFilmFormValues(): FilmFormValues {
-  return { title: '', durationMinutes: '', synopsis: '', posterUrl: '' }
-}
 
 export function toAuditoriumFormValues(auditorium: Auditorium): AuditoriumFormValues {
   const byLabel = new Map<string, SeatDraft[]>()

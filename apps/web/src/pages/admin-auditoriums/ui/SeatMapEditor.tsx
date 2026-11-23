@@ -1,14 +1,21 @@
 import { useTranslation } from 'react-i18next'
 import { useFieldArray, useFormContext, useWatch } from 'react-hook-form'
-import { Button } from '@/shared/ui/button'
-import { Field, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/shared/ui/field'
-import { Input } from '@/shared/ui/input'
+import {
+  Button,
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+  Input,
+} from '@/shared/ui'
 import {
   defaultRow,
   nextRowLabel,
   normalizeRowLabel,
   type AuditoriumFormValues,
-} from '../model/cinema'
+} from '../model/auditorium'
 
 function SeatRowEditor({
   rowIndex,

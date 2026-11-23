@@ -2,13 +2,23 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Alert, AlertDescription } from '@/shared/ui/alert'
-import { Badge } from '@/shared/ui/badge'
-import { Button } from '@/shared/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/shared/ui/card'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/shared/ui/field'
-import { Input } from '@/shared/ui/input'
-import { Spinner } from '@/shared/ui/spinner'
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  Input,
+  Spinner,
+} from '@/shared/ui'
 import {
   auditoriumFormSchema,
   emptyAuditoriumFormValues,
@@ -17,8 +27,8 @@ import {
   type Auditorium,
   type AuditoriumFormOutput,
   type AuditoriumFormValues,
-} from '../model/cinema'
-import { useAuditoriumsAdmin } from '../model/useCinemaAdmin'
+} from '../model/auditorium'
+import { useAuditoriumsAdmin } from '../model/useAuditoriumsAdmin'
 import { SeatMapEditor } from './SeatMapEditor'
 
 export function AuditoriumAdmin() {

@@ -1,6 +1,14 @@
-import { Badge } from '@/shared/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/shared/ui/empty'
+import {
+  Badge,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/shared/ui'
 import type { Booking } from '../model/booking'
 
 type BookingListProps = {

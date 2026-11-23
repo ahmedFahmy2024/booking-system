@@ -2,8 +2,7 @@ import { useQueryErrorResetBoundary } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, AlertAction, AlertTitle } from '@/shared/ui/alert'
-import { Button } from '@/shared/ui/button'
+import { Alert, AlertAction, AlertTitle, Button } from '@/shared/ui'
 
 export function RouteError() {
   const { t } = useTranslation('common')

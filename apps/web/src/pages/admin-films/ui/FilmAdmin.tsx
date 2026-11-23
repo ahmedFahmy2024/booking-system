@@ -2,13 +2,23 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Alert, AlertDescription } from '@/shared/ui/alert'
-import { Badge } from '@/shared/ui/badge'
-import { Button } from '@/shared/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/shared/ui/card'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/shared/ui/field'
-import { Input } from '@/shared/ui/input'
-import { Spinner } from '@/shared/ui/spinner'
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  Input,
+  Spinner,
+} from '@/shared/ui'
 import {
   emptyFilmFormValues,
   filmFormSchema,
@@ -16,8 +26,8 @@ import {
   type Film,
   type FilmFormOutput,
   type FilmFormValues,
-} from '../model/cinema'
-import { useFilmsAdmin } from '../model/useCinemaAdmin'
+} from '../model/film'
+import { useFilmsAdmin } from '../model/useFilmsAdmin'
 
 export function FilmAdmin() {
   const { t } = useTranslation('cinemaAdmin')
