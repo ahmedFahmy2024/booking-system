@@ -1,29 +1,13 @@
+import { auditoriumWriteSchema, rowLabelSchema } from '@booking-system/cinema-contracts'
 import { z } from 'zod'
 
-export interface Seat {
-  id: string
-  rowLabel: string
-  seatNumber: number
-  aisleAfter: boolean
-  isOutOfService: boolean
-}
+export type AuditoriumInput = z.output<typeof auditoriumWriteSchema>
+export type Seat = AuditoriumInput['seats'][number] & { id: string }
 
 export interface Auditorium {
   id: string
   name: string
   seats: Seat[]
-}
-
-export type SeatInput = Omit<Seat, 'id'>
-
-export interface AuditoriumInput {
-  name: string
-  seats: SeatInput[]
-}
-
-/** Row labels are stored uppercase; the unique index is case-sensitive. */
-export function normalizeRowLabel(value: string): string {
-  return value.trim().toUpperCase()
 }
 
 /** A, B, … Z, AA, AB … for newly added rows. */
@@ -38,18 +22,8 @@ export function nextRowLabel(index: number): string {
 }
 
 export const DEFAULT_SEATS_PER_ROW = 10
-export const MAX_AUDITORIUM_SEATS = 2000
-
-export interface SeatDraft {
-  seatNumber: number
-  aisleAfter: boolean
-  isOutOfService: boolean
-}
-
-export interface RowDraft {
-  rowLabel: string
-  seats: SeatDraft[]
-}
+type RowDraft = AuditoriumFormValues['rows'][number]
+type SeatDraft = RowDraft['seats'][number]
 
 export function defaultRow(rowLabel: string, seatCount = DEFAULT_SEATS_PER_ROW): RowDraft {
   return {
@@ -63,53 +37,58 @@ export function defaultRow(rowLabel: string, seatCount = DEFAULT_SEATS_PER_ROW):
 }
 
 const seatDraftSchema = z.object({
-  seatNumber: z.number().int().positive(),
+  seatNumber: z.number(),
   aisleAfter: z.boolean(),
   isOutOfService: z.boolean(),
 })
 
 const rowDraftSchema = z.object({
-  rowLabel: z.string().trim().min(1).max(10),
+  rowLabel: rowLabelSchema,
   seats: z.array(seatDraftSchema),
 })
 
 export const auditoriumFormSchema = z
   .object({
-    name: z.string().trim().min(1),
-    rows: z.array(rowDraftSchema).min(1).refine(
-      (rows) => rows.reduce((total, row) => total + row.seats.length, 0) <= MAX_AUDITORIUM_SEATS,
-      { error: 'seat_limit' },
-    ),
+    name: auditoriumWriteSchema.shape.name,
+    rows: z.array(rowDraftSchema).min(1),
   })
   .superRefine((value, ctx) => {
     const labels = new Set<string>()
     value.rows.forEach((row, rowIndex) => {
-      const label = normalizeRowLabel(row.rowLabel)
-      if (labels.has(label)) {
+      if (labels.has(row.rowLabel)) {
         ctx.addIssue({
           code: 'custom',
           message: 'duplicate_row',
           path: ['rows', rowIndex, 'rowLabel'],
         })
       }
-      labels.add(label)
-
-      const numbers = new Set<number>()
-      row.seats.forEach((seat, seatIndex) => {
-        if (numbers.has(seat.seatNumber)) {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'duplicate_seat',
-            path: ['rows', rowIndex, 'seats', seatIndex, 'seatNumber'],
-          })
-        }
-        numbers.add(seat.seatNumber)
-      })
+      labels.add(row.rowLabel)
     })
+  })
+  .transform(({ name, rows }, ctx) => {
+    const entries = rows.flatMap(({ rowLabel, seats }, rowIndex) =>
+      seats.map((seat, seatIndex) => ({ seat: { ...seat, rowLabel }, rowIndex, seatIndex })),
+    )
+    const result = auditoriumWriteSchema.safeParse({ name, seats: entries.map(({ seat }) => seat) })
+    if (result.success) return result.data
+
+    for (const issue of result.error.issues) {
+      const [field, index, ...seatPath] = issue.path
+      if (field !== 'seats') {
+        ctx.addIssue({ ...issue })
+        continue
+      }
+      const entry = typeof index === 'number' ? entries[index] : undefined
+      ctx.addIssue({
+        ...issue,
+        path: entry ? ['rows', entry.rowIndex, 'seats', entry.seatIndex, ...seatPath] : ['rows'],
+      })
+    }
+    return z.NEVER
   })
 
 export type AuditoriumFormValues = z.input<typeof auditoriumFormSchema>
-export type AuditoriumFormOutput = z.output<typeof auditoriumFormSchema>
+export type AuditoriumFormOutput = AuditoriumInput
 
 export function toAuditoriumFormValues(auditorium: Auditorium): AuditoriumFormValues {
   const byLabel = new Map<string, SeatDraft[]>()
@@ -133,18 +112,4 @@ export function toAuditoriumFormValues(auditorium: Auditorium): AuditoriumFormVa
 
 export function emptyAuditoriumFormValues(): AuditoriumFormValues {
   return { name: '', rows: [defaultRow('A')] }
-}
-
-export function toAuditoriumInput(values: AuditoriumFormOutput): AuditoriumInput {
-  return {
-    name: values.name,
-    seats: values.rows.flatMap((row) =>
-      row.seats.map((seat) => ({
-        rowLabel: normalizeRowLabel(row.rowLabel),
-        seatNumber: seat.seatNumber,
-        aisleAfter: seat.aisleAfter,
-        isOutOfService: seat.isOutOfService,
-      })),
-    ),
-  }
 }

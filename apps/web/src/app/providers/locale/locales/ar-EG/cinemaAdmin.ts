@@ -52,6 +52,7 @@ export default {
   seatMap: 'خريطة المقاعد',
   rowLabel: 'الصف',
   duplicateRow: 'رقم الصف مكرر',
+  invalidRowLabel: 'اكتب اسم صف من حرف واحد إلى {{limit}} أحرف بعد تحويله للحروف الكبيرة.',
   duplicateSeat: 'رقم المقعد مكرر في الصف',
   seatsForRow: 'مقاعد الصف {{row}}',
   outOfService: 'خارج الخدمة',

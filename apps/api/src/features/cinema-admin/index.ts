@@ -1,3 +1,4 @@
+import { auditoriumWriteSchema, filmWriteSchema } from '@booking-system/cinema-contracts'
 import { zValidator } from '@hono/zod-validator'
 import { randomUUID } from 'node:crypto'
 import { asc, eq, inArray } from 'drizzle-orm'
@@ -16,44 +17,6 @@ import { getDb } from '../../db/index.js'
 export const cinemaAdminRoutes = new Hono<AuthEnv>()
 
 const idSchema = z.object({ id: z.uuid() })
-
-export const filmWriteSchema = z.object({
-  title: z.string().trim().min(1),
-  durationMinutes: z.number().int().positive(),
-  synopsis: z.string().trim().min(1),
-  // The web form sends null for an empty poster field; the column is nullable.
-  posterUrl: z
-    .union([z.string().trim(), z.null()])
-    .optional()
-    .transform((value) => (value ? value : null))
-    .pipe(z.url().nullable()),
-})
-
-/** Row labels are normalised before writing: the unique index is case-sensitive. */
-const seatWriteSchema = z.object({
-  rowLabel: z.string().trim().min(1).max(10).transform((value) => value.toUpperCase()),
-  seatNumber: z.number().int().positive(),
-  aisleAfter: z.boolean().default(false),
-  isOutOfService: z.boolean().default(false),
-})
-
-export const auditoriumWriteSchema = z.object({
-  name: z.string().trim().min(1),
-  seats: z.array(seatWriteSchema).max(2000).superRefine((list, ctx) => {
-    const seen = new Set<string>()
-    list.forEach((seat, index) => {
-      const key = `${seat.rowLabel}#${seat.seatNumber}`
-      if (seen.has(key)) {
-        ctx.addIssue({
-          code: 'custom',
-          message: 'duplicate_seat',
-          path: [index, 'seatNumber'],
-        })
-      }
-      seen.add(key)
-    })
-  }),
-})
 
 type FilmViewRow = Pick<
   typeof films.$inferSelect,

@@ -1,3 +1,4 @@
+import { filmWriteSchema } from '@booking-system/cinema-contracts'
 import { z } from 'zod'
 
 export interface Film {
@@ -8,28 +9,14 @@ export interface Film {
   posterUrl: string | null
 }
 
-export interface FilmInput {
-  title: string
-  durationMinutes: number
-  synopsis: string
-  posterUrl: string | null
-}
+export type FilmInput = z.output<typeof filmWriteSchema>
 
-// The form keeps duration as a string until validation returns the API payload.
-export const filmFormSchema = z.object({
-  title: z.string().trim().min(1),
-  durationMinutes: z.string().trim().min(1).transform(Number).pipe(z.number().int().positive()),
-  synopsis: z.string().trim().min(1),
-  posterUrl: z
-    .string()
-    .trim()
-    .optional()
-    .transform((value) => (value ? value : null))
-    .pipe(z.url().nullable()),
+export const filmFormSchema = filmWriteSchema.extend({
+  durationMinutes: z.string().trim().min(1).transform(Number).pipe(filmWriteSchema.shape.durationMinutes),
 })
 
 export type FilmFormValues = z.input<typeof filmFormSchema>
-export type FilmFormOutput = z.output<typeof filmFormSchema>
+export type FilmFormOutput = FilmInput
 
 export function toFilmFormValues(film: Film): FilmFormValues {
   return {

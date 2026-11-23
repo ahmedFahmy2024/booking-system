@@ -1,3 +1,4 @@
+import { auditoriumWriteSchema } from '@booking-system/cinema-contracts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -32,7 +33,6 @@ vi.mock('../../db/index.js', () => ({
 }))
 
 import { app } from '../../app.js'
-import { auditoriumWriteSchema } from './index.js'
 
 const FILM_ID = '11111111-1111-4111-8111-111111111111'
 const AUDITORIUM_ID = '22222222-2222-4222-8222-222222222222'
@@ -274,7 +274,7 @@ describe('admin cinema routes — auditoriums and seats', () => {
     expect(queries).toHaveLength(3)
   })
 
-  it('rejects duplicate seats, non-positive numbers and blank labels before any write', async () => {
+  it('rejects duplicate seats, non-positive numbers and invalid labels before any write', async () => {
     const invalid = [
       {
         ...auditoriumPayload,
@@ -290,6 +290,10 @@ describe('admin cinema routes — auditoriums and seats', () => {
       {
         ...auditoriumPayload,
         seats: [{ rowLabel: ' ', seatNumber: 1 }],
+      },
+      {
+        ...auditoriumPayload,
+        seats: [{ rowLabel: 'ß'.repeat(6), seatNumber: 1 }],
       },
     ]
     for (const payload of invalid) {

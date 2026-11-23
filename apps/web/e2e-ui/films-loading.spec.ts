@@ -10,6 +10,32 @@ const films = [{
 const loadingText = 'جارٍ التحميل…'
 const title = 'إدارة الأفلام'
 
+test('submits a numeric duration and a null poster for a blank field', async ({ page }) => {
+  await page.route('**/api/admin/films', async (route) => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({ status: 201, json: films[0] })
+      return
+    }
+    await route.fulfill({ json: [] })
+  })
+
+  await page.goto('/admin/films')
+  await page.getByLabel('عنوان الفيلم').fill(' Cairo Nights ')
+  await page.getByLabel('المدة بالدقائق').fill('95')
+  await page.getByLabel('نبذة عن الفيلم').fill('A story set in Cairo.')
+  const saved = page.waitForResponse((response) => response.request().method() === 'POST'
+    && response.url().endsWith('/api/admin/films'))
+  await page.getByRole('button', { name: 'إضافة الفيلم' }).click()
+  const response = await saved
+  expect(response.status()).toBe(201)
+  expect(response.request().postDataJSON()).toEqual({
+    title: 'Cairo Nights',
+    durationMinutes: 95,
+    synopsis: 'A story set in Cairo.',
+    posterUrl: null,
+  })
+})
+
 test('reveals the film panel with a native transition after a slow read', async ({ page }) => {
   await page.addInitScript(() => {
     const start = document.startViewTransition.bind(document)

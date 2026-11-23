@@ -1,10 +1,9 @@
+import { normalizeRowLabel } from '@booking-system/cinema-contracts'
 import { describe, expect, it } from 'vitest'
 import {
   auditoriumFormSchema,
   defaultRow,
   nextRowLabel,
-  normalizeRowLabel,
-  toAuditoriumInput,
 } from './auditorium'
 
 describe('auditorium form model', () => {
@@ -26,10 +25,20 @@ describe('auditorium form model', () => {
         },
       ],
     })
-    expect(toAuditoriumInput(parsed)).toEqual({
+    expect(parsed).toEqual({
       name: 'Main Hall',
       seats: [{ rowLabel: 'A', seatNumber: 1, aisleAfter: true, isOutOfService: false }],
     })
+  })
+
+  it('checks the uppercase row label length at the form field', () => {
+    const result = auditoriumFormSchema.safeParse({
+      name: 'Hall',
+      rows: [defaultRow('ß'.repeat(6), 1)],
+    })
+    expect(result.error?.issues).toContainEqual(
+      expect.objectContaining({ path: ['rows', 0, 'rowLabel'] }),
+    )
   })
 
   it('refuses duplicate rows and duplicate seat numbers', () => {
@@ -38,12 +47,16 @@ describe('auditorium form model', () => {
       auditoriumFormSchema.safeParse({ name: 'Hall', rows: [row, { ...row, rowLabel: 'a' }] })
         .success,
     ).toBe(false)
-    expect(
-      auditoriumFormSchema.safeParse({
-        name: 'Hall',
-        rows: [{ rowLabel: 'A', seats: [row.seats[0], row.seats[0]] }],
-      }).success,
-    ).toBe(false)
+    const duplicateSeat = auditoriumFormSchema.safeParse({
+      name: 'Hall',
+      rows: [row, { rowLabel: 'B', seats: [row.seats[0], row.seats[0]] }],
+    })
+    expect(duplicateSeat.error?.issues).toContainEqual(
+      expect.objectContaining({
+        path: ['rows', 1, 'seats', 1, 'seatNumber'],
+        message: 'duplicate_seat',
+      }),
+    )
   })
 
   it('validates the 2000-seat limit across all rows', () => {

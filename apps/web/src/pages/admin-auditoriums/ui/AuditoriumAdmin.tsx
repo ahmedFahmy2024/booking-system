@@ -23,7 +23,6 @@ import {
   auditoriumFormSchema,
   emptyAuditoriumFormValues,
   toAuditoriumFormValues,
-  toAuditoriumInput,
   type Auditorium,
   type AuditoriumFormOutput,
   type AuditoriumFormValues,
@@ -55,7 +54,7 @@ export function AuditoriumAdmin() {
   const submit = handleSubmit(async (values) => {
     clearErrors('root.serverError')
     try {
-      await saveAuditorium(toAuditoriumInput(values), editingId ?? undefined)
+      await saveAuditorium(values, editingId ?? undefined)
       setEditingId(null)
     } catch {
       setError('root.serverError', { type: 'server' })

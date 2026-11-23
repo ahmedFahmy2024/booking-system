@@ -3,17 +3,24 @@ import { filmFormSchema } from './film'
 
 describe('film form model', () => {
   it('parses the film form into API-shaped values', () => {
-    const parsed = filmFormSchema.parse({
+    const formValues = {
       title: 'Cairo Nights',
       durationMinutes: '120',
       synopsis: 'A story.',
       posterUrl: '',
-    })
+    }
+    const parsed = filmFormSchema.parse(formValues)
     expect(parsed.durationMinutes).toBe(120)
     expect(parsed.posterUrl).toBeNull()
-    expect(filmFormSchema.safeParse({ ...parsed, durationMinutes: '0' }).success).toBe(false)
+    const blankDuration = filmFormSchema.safeParse({ ...formValues, durationMinutes: '  ' })
+    expect(blankDuration.error?.issues).toContainEqual(expect.objectContaining({
+      code: 'too_small',
+      origin: 'string',
+      path: ['durationMinutes'],
+    }))
+    expect(filmFormSchema.safeParse({ ...formValues, durationMinutes: '0' }).success).toBe(false)
     expect(
-      filmFormSchema.safeParse({ ...parsed, posterUrl: 'not-a-url' }).success,
+      filmFormSchema.safeParse({ ...formValues, posterUrl: 'not-a-url' }).success,
     ).toBe(false)
   })
 })

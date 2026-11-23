@@ -152,7 +152,7 @@ Applies [D3](#d3--films-seat-maps-and-showtimes) and [D7](#d7--web-behavior-and-
 
 Applies [D2](#d2--guest-link-and-checkout-access), [D4](#d4--booking-prices-and-retries), and [D7](#d7--web-behavior-and-records).
 
-- [ ] **B4.1** Build multi-seat selection, show the EGP unit price and total, and collect the guest email. Enforce the configured seat limit, defaulting to six.
+- [ ] **B4.1** Build multi-seat selection, show the EGP unit price and total, and collect the guest email. Enforce the configured seat limit, defaulting to six. Define the cinema checkout request schema in [`packages/cinema-contracts`](../packages/cinema-contracts/index.js) for the web form and the confirmation API to use.
 - [ ] **B4.2** Claim all seats together at confirmation. Verify the showtime, auditorium, availability, accepted price, quantity, and 15-minute booking cutoff on the server.
 - [ ] **B4.3** Refresh availability when a seat is taken and keep the available selections. When a price changes before confirmation, show the revised total and ask the guest to confirm it.
 - [ ] **B4.4** Persist the quoted price and booking reference. Show the film, showtime, auditorium, seat labels, and venue payment instructions on confirmation.

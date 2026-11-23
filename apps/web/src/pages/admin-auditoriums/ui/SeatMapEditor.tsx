@@ -1,3 +1,8 @@
+import {
+  MAX_AUDITORIUM_SEATS,
+  MAX_ROW_LABEL_LENGTH,
+  normalizeRowLabel,
+} from '@booking-system/cinema-contracts'
 import { useTranslation } from 'react-i18next'
 import { useFieldArray, useFormContext, useWatch } from 'react-hook-form'
 import {
@@ -12,9 +17,7 @@ import {
 } from '@/shared/ui'
 import {
   defaultRow,
-  MAX_AUDITORIUM_SEATS,
   nextRowLabel,
-  normalizeRowLabel,
   type AuditoriumFormValues,
 } from '../model/auditorium'
 
@@ -32,6 +35,7 @@ function SeatRowEditor({
     name: `rows.${rowIndex}.seats`,
   })
   const rowLabel = useWatch({ control, name: `rows.${rowIndex}.rowLabel` }) ?? ''
+  const normalizedRowLabel = normalizeRowLabel(rowLabel)
   const seatValues = useWatch({ control, name: `rows.${rowIndex}.seats` })
   const rowError = formState.errors.rows?.[rowIndex]?.rowLabel
   const seatError = formState.errors.rows?.[rowIndex]?.seats
@@ -47,16 +51,21 @@ function SeatRowEditor({
         <FieldLabel htmlFor={`row-label-${rowIndex}`}>{t('rowLabel')}</FieldLabel>
         <Input
           id={`row-label-${rowIndex}`}
-          className="uppercase"
           aria-invalid={Boolean(rowError)}
           {...register(`rows.${rowIndex}.rowLabel`)}
         />
-        {rowError && <FieldError>{t('duplicateRow')}</FieldError>}
+        {rowError && (
+          <FieldError>
+            {rowError.message === 'duplicate_row'
+              ? t('duplicateRow')
+              : t('invalidRowLabel', { limit: MAX_ROW_LABEL_LENGTH })}
+          </FieldError>
+        )}
       </Field>
 
       <ul
         className="flex flex-1 list-none flex-wrap gap-2 p-0"
-        aria-label={t('seatsForRow', { row: normalizeRowLabel(rowLabel) })}
+        aria-label={t('seatsForRow', { row: normalizedRowLabel })}
       >
         {seats.map((seat, seatIndex) => (
           <li
@@ -65,7 +74,7 @@ function SeatRowEditor({
             style={{ marginInlineEnd: seatValues?.[seatIndex]?.aisleAfter ? '1rem' : undefined }}
           >
             <span className="font-semibold">
-              {normalizeRowLabel(rowLabel)}
+              {normalizedRowLabel}
               {seat.seatNumber}
             </span>
             <label className="flex items-center gap-1">

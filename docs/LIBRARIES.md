@@ -110,7 +110,7 @@ Versions were taken from `package.json` when this file was written. For exact li
 - **In this project:**
   - Use `z.input<typeof schema>` for raw form values and `z.output<typeof schema>` for transformed values.
   - In Zod 4 use the modern APIs: `z.email()`, `z.iso.datetime()`, `z.coerce.number()`, `.pipe()`, `.transform()`.
-  - The same version is installed in both apps — keep types compatible between form and API.
+  - Keep the Zod version in sync across both apps. Film and auditorium forms use the shared request schemas in [`packages/cinema-contracts`](../packages/cinema-contracts/index.js) and derive payload types from them.
 - **Rule:** Do not add Yup, Joi, or Valibot, and do not hand-write validation (regex/ if) where Zod can do it. Guide in the `zod` skill.
 
 #### 8. `@tanstack/devtools` + `@tanstack/devtools-vite` + `@tanstack/react-devtools` + `@tanstack/react-query-devtools` + `@tanstack/react-router-devtools`

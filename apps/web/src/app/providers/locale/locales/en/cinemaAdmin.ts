@@ -41,6 +41,7 @@ export default {
   seatMap: 'Seat map',
   rowLabel: 'Row',
   duplicateRow: 'Duplicate row label',
+  invalidRowLabel: 'Enter a row label with 1 to {{limit}} characters after uppercasing.',
   duplicateSeat: 'Duplicate seat number in this row',
   seatsForRow: 'Seats in row {{row}}',
   outOfService: 'Out of service',

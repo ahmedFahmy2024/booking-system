@@ -35,6 +35,7 @@ drizzle/      # generated SQL migrations (apps/api)
 - Import direction is `app → pages → (features → entities) → shared`. `app/routes/*` are thin adapters that delegate to a page through its public `index.ts`; page code stays inside its own slice. Move shared code into `shared/` only when it has a genuinely reusable purpose. Do not create empty `features/`, `entities/`, or `widgets/` folders.
 - `shared/` may import other shared modules and external libraries, never `app/`, `pages/`, `features/`, or `entities/`.
 - React reaches Hono over HTTP. Never import `@neondatabase/serverless`, `drizzle-orm`, or anything from `apps/api/src/db` into `apps/web`. `DATABASE_URL` stays on the API side.
+- Film and auditorium request schemas live in [`packages/cinema-contracts`](../packages/cinema-contracts/index.js). Both apps set `install-links=true` in their local `.npmrc` so npm installs a copy of the `file:` dependency that resolves Zod from the consuming app. After editing the package, rerun `npm ci` in both apps to refresh their installed copies.
 - API route groups live under `apps/api/src/features/<name>` and expose a Hono router; `app.ts` mounts them.
 - Server-only imports (`@neondatabase/serverless`, `drizzle-orm`, `apps/api/src/db`) are blocked in `apps/web` by `no-restricted-imports` in `apps/web/.oxlintrc.json`. Both apps have their own `.oxlintrc.json` and a `lint` script. Cross-feature imports through another feature's internals are a convention only; Oxlint cannot express that rule yet.
 
