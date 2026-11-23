@@ -36,6 +36,20 @@
       "when": 1795423021748,
       "tag": "0004_free_paibok",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795454231185,
+      "tag": "0005_zippy_ultimatum",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795454257068,
+      "tag": "0006_showtime_no_overlap",
+      "breakpoints": true
     }
   ]
 }

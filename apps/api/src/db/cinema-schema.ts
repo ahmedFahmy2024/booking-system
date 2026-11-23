@@ -103,6 +103,12 @@ export const showtimes = pgTable(
       .references(() => auditoriums.id),
     /** Entered in Africa/Cairo wall-clock time, persisted as a UTC instant. */
     startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    /**
+     * Inclusive start through exclusive end of this film plus the 15-minute
+     * turnaround. Written by B3.3 from the film's duration and reused by the
+     * Postgres exclusion constraint that arbitrates overlapping showtimes.
+     */
+    occupancyEndsAt: timestamp('occupancy_ends_at', { withTimezone: true }).notNull(),
     status: text('status').$type<ShowtimeStatus>().notNull().default('draft'),
     /** Unit price per seat in integer piastres; B3.3 validates before publish. */
     pricePiastres: integer('price_piastres').notNull().default(0),
@@ -119,6 +125,7 @@ export const showtimes = pgTable(
     index('showtimes_auditorium_starts_at_idx').on(t.auditoriumId, t.startsAt),
     index('showtimes_status_idx').on(t.status),
     check('showtimes_price_piastres_non_negative', sql`${t.pricePiastres} >= 0`),
+    check('showtimes_occupancy_end_after_start', sql`${t.occupancyEndsAt} > ${t.startsAt}`),
   ],
 )
 

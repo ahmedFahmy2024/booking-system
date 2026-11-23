@@ -9,7 +9,7 @@ Status follows the [build plan](build-plan.md). Update this file when a slice is
 | B0 | Implemented | The generic prototype has a booking form and list, a service catalogue, Hono endpoints, and a Drizzle migration. It saves a service and a requested time. |
 | B1 | Complete | The user approved the launch scope, booking rules, operating policies, and [D1–D8 implementation decisions](build-plan.md#approved-implementation-decisions). |
 | B2 | Complete | B2.1 defined the [permission matrix](permission-matrix.md), B2.2 added Better Auth staff sign-in, sessions, invitations, and password reset, B2.3 enforced default-deny in the Hono API including the staff booking list, and B2.4 added scoped private guest-link credentials, read-only guest access, staff resend and rate limiting. The prototype list no longer exposes contact details without an access check; the guest-facing page and cancellation remain in B5. |
-| B3 | Partial | Arabic localization and RTL are wired into the current web shell. Film catalogue, auditoriums, seats, published showtimes, and seat-map reads remain. |
+| B3 | Partial | Arabic localization and RTL are wired into the current web shell, and admins can manage films and seat maps (B3.2) plus create, price and publish showtimes with an overlap-safe snapshot (B3.3). The public film catalogue, showtime list and seat-map reads (B3.4), and repeatable cinema seed (B3.5), remain. |
 | B4 | Planned | Multi-seat booking and confirmation, atomic seat claims, and retry behavior. B0 covers only generic booking persistence. |
 | B5 | Planned | Guest booking retrieval, guest and staff cancellation, and admin showtime cancellation. |
 | B6 | Planned | Show occupancy and staff booking management, including an activity record. |
@@ -28,6 +28,7 @@ Status follows the [build plan](build-plan.md). Update this file when a slice is
 | Staff authentication | `npm --prefix apps/api run verify`, `npm --prefix apps/web run verify`, `auth check schema`, Hono CLI, and `npm --prefix apps/api run auth:verify-flow` on the isolated `booking_system_test` Neon database | B2.2 passed on 2026-11-22: 14 API tests, Web verify, `GET /api/auth/ok` 200, schema check, Hono route list, and the live flow (sign-in, 24-hour invite TTL from the stored token, password reset, role guard, deactivation, sign-out, last-admin trigger, concurrent deactivation). Migrations `0001` and `0002` were applied to the isolated database via `db:migrate` with `DATABASE_URL_UNPOOLED`. An independent review found two blocking issues (banned session escape and last-admin race); both were fixed and re-verified live. |
 | Cinema schema | `npm --prefix apps/api run verify`, `npm run db:generate`, `npm run db:migrate` and `npx tsx scripts/verify-cinema-schema.ts` on the isolated `booking_system_test` database | B3.1 passed on 2026-11-23: migration `0004` applied to the isolated unpooled database with 3 services and 6 bookings preserved, four empty cinema tables, NULL `bookings.showtime_id`; repeated generate/migrate idempotent. 50 API tests and 7 web tests pass. Full commands and outcomes in the B3.1 section below. |
 | Admin cinema screens | `npm --prefix apps/api run verify`, `npm --prefix apps/web run verify`, React Doctor, `git diff --check`, agent-browser screenshots and axe a11y audit | B3.2 passed on 2026-11-23: 65 API tests in 9 files and 19 web tests in 6 files; browser evidence under `.booking-work/evidence/b3-2/`; zero a11y violations on both admin screens. No migration, no live DB, no E2E, no commit. Full detail in the B3.2 section below. |
+| Showtime publishing | `npm --prefix apps/api run verify`, `npm --prefix apps/web run verify`, `npm run db:generate`, `npm run db:migrate` and `npx tsx scripts/verify-showtime-overlap.ts` on the isolated `booking_system_test` database | B3.3 passed on 2026-11-23: 86 API tests in 10 files and 32 web tests in 8 files; migrations `0005` and `0006` applied to the isolated unpooled database and the real exclusion constraint verified with overlapping, back-to-back, separate-auditorium, two concurrent, publish-UPDATE and cancelled-release cases; prototype rows unchanged. An independent review found no blocking issues. No production DB, no E2E, no commit. Full detail in the B3.3 section below. |
 
 ## B2.3 — API permission enforcement (2026-11-23)
 
@@ -169,6 +170,59 @@ git diff --check
 
 **Risk review (focused self-review, base `fdbb2f8`):** this change affects stored data, a new web/API contract and admin access, so `review-booking-change` was used. No separate reviewer delegation tool was available in this subagent context, so this was a focused self-review rather than an independent one. Three rounds were used. **Two findings were confirmed and fixed:** (1) the web form sends `posterUrl: null` for an empty field, but the API schema only accepted a string or an omitted value, so a valid empty-poster save would have returned 400 — the schema now unions `z.null()` and a regression test covers it; (2) `PUT /auditoriums/:id` with seats on a missing auditorium would have hit an FK violation (500) instead of 404 — an existence check now rejects before the batch, and the test asserts no batch is attempted. A third issue found in the browser was **confirmed and fixed**: the shadcn `destructive` variant on "remove row" failed WCAG contrast (3.98:1); switching that button to `outline` brought both admin screens to 0 axe violations. Confirmed: all six routes carry `requireAdmin`; denial precedes any DB call; validation happens before writes; row-label normalization is enforced both in the form/API payload and at the API boundary; the seat replacement is one `db.batch` transaction so a failed insert rolls back the delete; empty-seat maps keep the same batch shape; no schema, migration, booking, guest-link, auth or existing response contract changed; the FSD slice imports only `shared/`, and no server-only import reached the web. Recovery: a rejected save leaves stored data unchanged; a rolled-back batch preserves the previous seat map; a bad auditorium edit can be re-saved from the editor. **Limitation:** the `db.batch` rollback was verified against the installed driver source and mocked route tests, not against a live Neon transaction; no isolated-DB rehearsal was performed here to avoid changing that database's state.
 
+## B3.3 — Showtime creation, pricing and publishing (2026-11-23)
+
+Acceptance criteria were written to `.booking-work/handoffs/b3-3-showtime-publishing.md` before editing. Each is starting state → request/action → expected result → evidence.
+
+| ID | Starting state → action → expected result | Evidence |
+| --- | --- | --- |
+| AC1 | No session / operations / banned admin / unknown role / active admin → `GET`, `POST`, `POST /:id/publish`, `PATCH /:id/price` on `/admin/showtimes` → 401 / 403 / 403 / 403 / success; denial precedes any DB call and leaks no showtime fields. Retry after admin sign-in succeeds. | `apps/api/src/features/showtimes/index.test.ts` access-control cases asserting status, body and `getDb()` not called. |
+| AC2 | A film (120 min) and auditorium exist → `POST /admin/showtimes` with a Cairo wall clock `2026-07-15T19:00` → 201 draft, `startsAt` stored as `16:00Z`, `occupancyEndsAt` `18:15Z`, draft price defaults to 0, snapshot NULL. A spring-forward gap, negative price, bad UUID or unknown film/auditorium → 400/404 with no INSERT; corrected retry → 201. | API creation cases asserting `insert().values()` and error paths; existing `schedule.test.ts` cases. |
+| AC3 | An unpriced draft with no snapshot → `POST /:id/publish` with price 0 → 400 with no write; with price 2500 → 200 published with the ordered seat snapshot and occupancy recomputed from the film's current duration. An auditorium with no seats → 409 with no write. | API publishing cases asserting the exact `update().set()` payload and no-write denials. |
+| AC4 | Published, cancelled and unknown showtimes → publish or price-change requests → publish from a non-draft → 409; unknown → 404; price change on published → 200; on cancelled → 409. B3.3 owns only `draft → published`; cancellation is B5.4. | API transition cases; the publish `WHERE id AND status = 'draft'` guard returns 409 when a competing publish wins. |
+| AC5 | Published showtime `[S, S+D+15)` → an early same-auditorium showtime → 409 `showtime_overlap`; a showtime at the exact end → success; the same interval in another auditorium → success; two concurrent same-auditorium claims → exactly one wins. A publish UPDATE that recomputes an overlapping end is rejected, and a cancelled showtime releases its slot. | Custom migration `0006_showtime_no_overlap.sql`; API case mapping `23P01` (direct, Drizzle-wrapped and nested causes) to 409; isolated-database rehearsal output below. |
+| AC6 | Schema without an occupancy end column → add `occupancy_ends_at timestamptz` + check, generate `0005`, add custom `0006` for `btree_gist` and the partial exclusion constraint, generate again → no changes; apply both to the isolated DB → 3 services and 6 bookings preserved. | Generated SQL, journal, rehearsal output below. |
+| AC7 | Complete change → both verify commands, `git diff --check`, browser-independent evidence and risk review → all green; no web changes, no E2E, no production DB, no commit; build plan ticked, next action B3.4. | Command outputs and risk review below. |
+
+**Changed files:** new `apps/api/src/features/showtimes/{index.ts,index.test.ts}` and `apps/api/scripts/verify-showtime-overlap.ts`; edited `apps/api/src/db/cinema-schema.ts` and `apps/api/src/app.ts`; generated `apps/api/drizzle/0005_zippy_ultimatum.sql` + snapshot and custom `0006_showtime_no_overlap.sql` + snapshot + journal entries; this checkpoint and both docs. No existing B2/B3.1/B3.2 content was overwritten.
+
+**Verification (exact commands and outcomes, from the repository root):**
+
+```powershell
+npm --prefix apps/api run verify
+# lint clean; typecheck clean; 86 tests in 10 files passed; tsc build clean
+npm --prefix apps/web run verify
+# three pre-existing advisory fast-refresh warnings; typecheck clean;
+# 32 tests in 8 files passed; Vite build clean
+npm --prefix apps/api run db:generate
+# first run: 0005_zippy_ultimatum.sql; second run: "No schema changes, nothing to migrate"
+git diff --check
+# exit 0; only the usual LF→CRLF normalization warnings
+```
+
+No React changes, so React Doctor was not needed. No web source changed. `npm run test:e2e` was deliberately not run (known B0 gap, progress tracker lines 25/82).
+
+### Isolated migration and concurrency rehearsal (exact commands and outcomes)
+
+Run from `apps/api` in PowerShell. The guard printed only the database name and unpooled flag; no credential was printed at any point.
+
+```powershell
+Get-Content '.env.test' | ForEach-Object { if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$') { [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process') } }
+$u = [Uri]$env:DATABASE_URL_UNPOOLED
+if ($u.AbsolutePath.TrimStart('/') -ne 'booking_system_test' -or $u.Host.Contains('-pooler')) { throw 'Refusing: not the isolated unpooled booking_system_test database' }
+npx drizzle-kit migrate
+npx tsx scripts/verify-showtime-overlap.ts
+npx tsx scripts/verify-cinema-schema.ts
+```
+
+- Target guard: `booking_system_test`, unpooled `True`. Migrations applied successfully with the driver's informational websocket warning.
+- Rehearsal: `btreeGistAvailable true`; baseline `fulfilled`; overlapping `rejected`; back-to-back at the exact occupancy end `fulfilled`; same instant in another auditorium `fulfilled`; two concurrent identical claims `["fulfilled","rejected"]`; overlapping publish UPDATE `rejected`; non-overlapping publish UPDATE `fulfilled`; cancelled showtime releases its slot (`fulfilled`); prototype rows before and after both `services 3, bookings 6`.
+- Post-check: `filmCount 0`, `auditoriumCount 0`, `seatCount 0`, `showtimeCount 0`, `showtimeStartsAtType "timestamp with time zone"`, booking reference fingerprint unchanged. Every rehearsal row was removed by the script's `finally` block.
+
+**Risk review (independent reviewer, fresh context, base `e9b5477`):** this change affects stored data and adds a web/API contract, so `review-booking-change` was used with delegation to a separate reviewer. **No blocking issues.** Confirmed: `requireAdmin` precedes every database call and `showtimeView` is a fixed field set; the publish guard `WHERE id AND status = 'draft'` is a correct compare-and-swap; the partial GiST constraint is half-open, per-auditorium and excludes cancelled rows; `23P01` is mapped through the Drizzle/Neon cause chain on both INSERT and UPDATE; generation is idempotent (`drizzle-kit check` clean) and no existing route, response shape, web file or dependency changed.
+
+Nine non-blocking findings were reported. Seven were confirmed and fixed in this task, then the API gate and rehearsal were re-run (86 tests; all rehearsal checks pass): the publish `WHERE` now has an explicit SQL assertion so removing the status guard fails a test; corrected-retry pairs cover a bad wall clock and a zero price; publish is tested with a changed film duration (180 min → 19:15Z end) so a stale reused end fails; the cancelled-release predicate is exercised on the isolated database; denial bodies are asserted per role; the nested-cause error mapping is covered; and the rehearsal now pre-cleans leftover fixtures because auditorium names are unique. Two findings remain as documented follow-ups, not defects: route unit tests mock the database, so end-to-end persistence of column names and the view mapping should be exercised with a real staff session in B8; `PATCH /:id/price` also permits a draft price change, which is harmless because B4 snapshots the accepted price on the booking. Recovery: a rejected payload or conflicting write changes nothing; a wrongly published showtime can be cancelled and republished under B5.4/B3.3 rules; rolling back `0006` drops the constraint and `0005` drops the column, and B3.3 is the first writer so there are no showtime rows to lose.
+
 ## Next action
 
-Start **B3.3** in the [films, auditoriums and showtimes checklist](build-plan.md#b3--films-auditoriums-and-showtimes): schedule, price and publish showtimes. Validate a positive price and a captured layout snapshot before publish, restrict status transitions, and enforce the Cairo half-open occupancy interval (duration + 15-minute turnaround) at the storage boundary including simultaneous publish attempts. Reuse the pure helpers in `apps/api/src/features/showtimes/schedule.ts`. Keep the known B0 Playwright gap in view; do not run the old E2E until B3/B4 replace the home page.
+Start **B3.4** in the [films, auditoriums and showtimes checklist](build-plan.md#b3--films-auditoriums-and-showtimes): build the public Arabic RTL film catalogue, showtime list with Cairo time, and a keyboard/screen-reader-operable seat map for a published showtime. Expose labelled seats and availability from the published `layoutSnapshot`; use the shared `AsyncSection` pattern if the seat-map request can resolve independently of the showtime heading. Keep the known B0 Playwright gap in view; do not run the old E2E until B3/B4 replace the home page.

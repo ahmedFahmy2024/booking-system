@@ -1,0 +1,2 @@
+ALTER TABLE "showtimes" ADD COLUMN "occupancy_ends_at" timestamp with time zone NOT NULL;--> statement-breakpoint
+ALTER TABLE "showtimes" ADD CONSTRAINT "showtimes_occupancy_end_after_start" CHECK ("showtimes"."occupancy_ends_at" > "showtimes"."starts_at");
