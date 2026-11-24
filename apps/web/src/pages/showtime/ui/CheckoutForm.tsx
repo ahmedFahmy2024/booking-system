@@ -25,8 +25,9 @@ import {
   toCheckoutRequest,
   type CheckoutFormOutput,
   type CheckoutFormValues,
-  type CheckoutRequest,
+  type ConfirmedBooking,
 } from '../model/checkout'
+import { useConfirmBooking } from '../model/useConfirmBooking'
 import { SeatMapPending } from './SeatMapPending'
 import { SeatMapSection } from './SeatMapSection'
 
@@ -40,7 +41,9 @@ export function CheckoutForm({ showtimeId, pricePiastres, bookingClosed }: Check
   const { t, i18n } = useTranslation('catalogue')
   const locale = i18n.resolvedLanguage ?? i18n.language
   const [atSeatLimit, setAtSeatLimit] = useState(false)
-  const [submitted, setSubmitted] = useState<CheckoutRequest | null>(null)
+  const [confirmed, setConfirmed] = useState<ConfirmedBooking | null>(null)
+  const [failed, setFailed] = useState(false)
+  const { mutate: confirm, isPending } = useConfirmBooking(showtimeId)
 
   const form = useForm<CheckoutFormValues, unknown, CheckoutFormOutput>({
     resolver: zodResolver(checkoutFormSchema),
@@ -59,8 +62,13 @@ export function CheckoutForm({ showtimeId, pricePiastres, bookingClosed }: Check
   const seatIds = useWatch({ control, name: 'seatIds' }) ?? []
   const totalPiastres = checkoutTotalPiastres(pricePiastres, seatIds.length)
 
+  function clearOutcome() {
+    setConfirmed(null)
+    setFailed(false)
+  }
+
   function toggleSeat(seatId: string) {
-    setSubmitted(null)
+    clearOutcome()
     const current = getValues('seatIds')
     if (current.includes(seatId)) {
       setAtSeatLimit(false)
@@ -78,9 +86,12 @@ export function CheckoutForm({ showtimeId, pricePiastres, bookingClosed }: Check
     setValue('seatIds', [...current, seatId], { shouldValidate: true, shouldDirty: true })
   }
 
-  // B4.2 replaces this validated summary with the atomic confirmation write.
   const submit = handleSubmit((values) => {
-    setSubmitted(toCheckoutRequest(showtimeId, values))
+    clearOutcome()
+    confirm(toCheckoutRequest(showtimeId, values), {
+      onSuccess: setConfirmed,
+      onError: () => setFailed(true),
+    })
   })
 
   return (
@@ -110,7 +121,7 @@ export function CheckoutForm({ showtimeId, pricePiastres, bookingClosed }: Check
                   autoComplete="email"
                   aria-invalid={Boolean(errors.email)}
                   aria-describedby={errors.email ? 'guestEmail-error' : undefined}
-                  {...register('email', { onChange: () => setSubmitted(null) })}
+                  {...register('email', { onChange: clearOutcome })}
                 />
                 {errors.email && <FieldError id="guestEmail-error">{t('invalidEmail')}</FieldError>}
               </Field>
@@ -127,20 +138,24 @@ export function CheckoutForm({ showtimeId, pricePiastres, bookingClosed }: Check
                 </p>
               </div>
 
-              {submitted && (
+              {failed && (
+                <p role="alert" className="text-destructive text-sm font-medium">
+                  {t('confirmFailed')}
+                </p>
+              )}
+              {confirmed && (
                 <p role="status" className="text-sm font-medium">
-                  {t('checkoutReady', {
-                    seatCount: submitted.seatIds.length,
-                    total: formatEgp(totalPiastres, locale),
-                    email: submitted.customerEmail,
+                  {t('bookingConfirmed', {
+                    reference: confirmed.reference,
+                    total: formatEgp(confirmed.totalPiastres, locale),
                   })}
                 </p>
               )}
             </FieldGroup>
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={bookingClosed}>
-              {t('confirmSelection')}
+            <Button type="submit" disabled={bookingClosed || isPending}>
+              {isPending ? t('confirming') : t('confirmSelection')}
             </Button>
           </CardFooter>
         </Card>

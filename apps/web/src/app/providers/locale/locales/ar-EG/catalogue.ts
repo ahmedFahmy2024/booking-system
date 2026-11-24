@@ -43,6 +43,8 @@ export default {
   seatListSeparator: '، ',
   unitPrice: 'سعر المقعد: {{price}}',
   totalPrice: 'الإجمالي لـ {{seatCount}} مقعد: {{total}}',
-  checkoutReady: 'تم التحقق من الاختيار: {{seatCount}} مقعد، {{total}}، {{email}}.',
+  confirming: 'جارٍ تأكيد الحجز...',
+  confirmFailed: 'تعذّر تأكيد الحجز. تحقق من المقاعد وحاول مرة أخرى.',
+  bookingConfirmed: 'تم تأكيد الحجز برقم {{reference}} بمبلغ {{total}}.',
   confirmSelection: 'تأكيد الاختيار',
 } as const

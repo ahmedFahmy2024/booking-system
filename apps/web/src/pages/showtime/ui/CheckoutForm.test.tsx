@@ -3,12 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatEgp } from '@/shared/lib'
 import type { Seat } from '../model/showtime'
 
-const mocks = vi.hoisted(() => ({ useSeatMap: vi.fn() }))
+const mocks = vi.hoisted(() => ({ useSeatMap: vi.fn(), confirm: vi.fn() }))
 
 vi.mock('../model/useSeatMap', () => ({ useSeatMap: mocks.useSeatMap }))
+vi.mock('../model/useConfirmBooking', () => ({
+  useConfirmBooking: () => ({ mutate: mocks.confirm, isPending: false }),
+}))
 
 import { CheckoutForm } from './CheckoutForm'
 
+const showtimeId = '11111111-1111-4111-8111-111111111111'
 const seatIds = Array.from(
   { length: 7 },
   (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
@@ -22,14 +26,19 @@ const seat = (index: number): Seat => ({
   available: true,
 })
 
+const confirmedBooking = {
+  id: '33333333-3333-4333-8333-333333333333',
+  reference: `bkg_${'a'.repeat(32)}`,
+  showtimeId,
+  seatIds: [seatIds[0]],
+  customerEmail: 'guest@example.com',
+  startsAt: '2026-12-01T12:00:00.000Z',
+  unitPricePiastres: 2500,
+  totalPiastres: 2500,
+}
+
 function renderForm() {
-  return render(
-    <CheckoutForm
-      showtimeId="11111111-1111-4111-8111-111111111111"
-      pricePiastres={2500}
-      bookingClosed={false}
-    />,
-  )
+  return render(<CheckoutForm showtimeId={showtimeId} pricePiastres={2500} bookingClosed={false} />)
 }
 
 function clickSeat(number: number) {
@@ -49,6 +58,7 @@ function expectPrice(prefix: string, piastres: number) {
 }
 
 beforeEach(() => {
+  vi.resetAllMocks()
   mocks.useSeatMap.mockReturnValue({
     seatMap: {
       showtimeId: 'showtime-1',
@@ -56,6 +66,10 @@ beforeEach(() => {
       seats: Array.from({ length: 7 }, (_, index) => seat(index)),
     },
   })
+  mocks.confirm.mockImplementation(
+    (_payload: unknown, options?: { onSuccess?: (value: typeof confirmedBooking) => void }) =>
+      options?.onSuccess?.(confirmedBooking),
+  )
 })
 
 describe('CheckoutForm', () => {
@@ -85,7 +99,7 @@ describe('CheckoutForm', () => {
     expect(screen.getByRole('button', { name: 'المقعد A7 — متاح' }).getAttribute('aria-pressed')).toBe('false')
   })
 
-  it('requires a seat before showing a ready selection', async () => {
+  it('does not confirm without a seat', async () => {
     renderForm()
 
     submit()
@@ -93,10 +107,11 @@ describe('CheckoutForm', () => {
     await waitFor(() => {
       expect(screen.getByText('اختر مقعدًا واحدًا على الأقل.')).toBeDefined()
     })
-    expect(screen.queryByText(/تم التحقق من الاختيار/)).toBeNull()
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(screen.queryByText(/تم تأكيد الحجز/)).toBeNull()
   })
 
-  it('clears a stale ready summary when the email or seats change after submitting', async () => {
+  it('clears a stale confirmation when the email or seats change after success', async () => {
     renderForm()
     const email = screen.getByLabelText('بريدك الإلكتروني')
 
@@ -104,41 +119,74 @@ describe('CheckoutForm', () => {
     fireEvent.change(email, { target: { value: 'guest@example.com' } })
     submit()
     await waitFor(() => {
-      expect(screen.getByText(/تم التحقق من الاختيار/)).toBeDefined()
+      expect(screen.getByText(/تم تأكيد الحجز/)).toBeDefined()
     })
 
     fireEvent.change(email, { target: { value: 'another@example.com' } })
-    expect(screen.queryByText(/تم التحقق من الاختيار/)).toBeNull()
+    expect(screen.queryByText(/تم تأكيد الحجز/)).toBeNull()
 
     submit()
     await waitFor(() => {
-      expect(screen.getByText(/تم التحقق من الاختيار/)).toBeDefined()
+      expect(screen.getByText(/تم تأكيد الحجز/)).toBeDefined()
     })
     clickSeat(2)
-    expect(screen.queryByText(/تم التحقق من الاختيار/)).toBeNull()
+    expect(screen.queryByText(/تم تأكيد الحجز/)).toBeNull()
   })
 
-  it('keeps the selection and email on a bad email, then accepts the retry', async () => {
+  it('keeps the selection and email on a bad email, then confirms the retry', async () => {
     renderForm()
     const email = screen.getByLabelText('بريدك الإلكتروني')
 
     clickSeat(1)
     fireEvent.change(email, { target: { value: 'not-an-email' } })
-    fireEvent.click(screen.getByRole('button', { name: 'تأكيد الاختيار' }))
+    submit()
 
     await waitFor(() => {
       expect(screen.getByText('أدخل بريدًا إلكترونيًا صحيحًا.')).toBeDefined()
     })
-    expect(screen.queryByText(/تم التحقق من الاختيار/)).toBeNull()
+    expect(mocks.confirm).not.toHaveBeenCalled()
     expect((email as HTMLInputElement).value).toBe('not-an-email')
     expect(screen.getByRole('button', { name: 'المقعد A1 — متاح' }).getAttribute('aria-pressed')).toBe('true')
 
     fireEvent.change(email, { target: { value: 'guest@example.com' } })
-    fireEvent.click(screen.getByRole('button', { name: 'تأكيد الاختيار' }))
+    submit()
 
     await waitFor(() => {
-      expect(screen.getByText(/تم التحقق من الاختيار: 1 مقعد/).textContent).toContain('guest@example.com')
+      expect(mocks.confirm).toHaveBeenCalledWith(
+        { showtimeId, seatIds: [seatIds[0]], customerEmail: 'guest@example.com' },
+        expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+      )
     })
+    expect(screen.getByText(/تم تأكيد الحجز/).textContent).toContain(confirmedBooking.reference)
     expect(screen.queryByText('أدخل بريدًا إلكترونيًا صحيحًا.')).toBeNull()
+  })
+
+  it('shows a localized error and keeps values when the API refuses the booking', async () => {
+    renderForm()
+    const email = screen.getByLabelText('بريدك الإلكتروني')
+    mocks.confirm.mockImplementation(
+      (_payload: unknown, options?: { onError?: () => void }) => options?.onError?.(),
+    )
+
+    clickSeat(1)
+    fireEvent.change(email, { target: { value: 'guest@example.com' } })
+    submit()
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeDefined()
+    })
+    expect(screen.getByRole('alert').textContent).toContain('تعذّر تأكيد الحجز')
+    expect((email as HTMLInputElement).value).toBe('guest@example.com')
+    expect(screen.getByRole('button', { name: 'المقعد A1 — متاح' }).getAttribute('aria-pressed')).toBe('true')
+
+    mocks.confirm.mockImplementation(
+      (_payload: unknown, options?: { onSuccess?: (value: typeof confirmedBooking) => void }) =>
+        options?.onSuccess?.(confirmedBooking),
+    )
+    submit()
+    await waitFor(() => {
+      expect(screen.getByText(/تم تأكيد الحجز/)).toBeDefined()
+    })
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })

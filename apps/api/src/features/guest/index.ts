@@ -52,7 +52,8 @@ guestRoutes.get('/bookings/:reference', async (c) => {
       guestLinkExpiresAt: bookings.guestLinkExpiresAt,
     })
     .from(bookings)
-    .innerJoin(services, eq(bookings.serviceId, services.id))
+    // Cinema bookings have no prototype service; the guest still needs their link.
+    .leftJoin(services, eq(bookings.serviceId, services.id))
     .where(eq(bookings.reference, reference))
     .limit(1)
 

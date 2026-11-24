@@ -6,6 +6,8 @@
 export const CAIRO_TIME_ZONE = 'Africa/Cairo'
 /** An auditorium is occupied for the film plus this turnaround after it ends. */
 export const SHOWTIME_TURNAROUND_MINUTES = 15
+/** Online checkout and the read-side booking flag close 15 minutes before start. */
+export const BOOKING_CUTOFF_MINUTES = 15
 
 const MINUTE_MS = 60_000
 const WALL_CLOCK = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/
@@ -132,6 +134,26 @@ export function occupancyOf(
       schedule.startsAt.getTime() + (schedule.durationMinutes + turnaroundMinutes) * MINUTE_MS,
     ),
   }
+}
+
+/**
+ * Checkout closes at `startsAt − 15 min`. The instant itself is already closed,
+ * so both the public read flag and the confirmation write use this helper.
+ */
+export function bookingCutoffAt(startsAt: Date): Date {
+  return new Date(startsAt.getTime() - BOOKING_CUTOFF_MINUTES * MINUTE_MS)
+}
+
+export function isBookingClosed(startsAt: Date, now: Date = new Date()): boolean {
+  return now.getTime() >= bookingCutoffAt(startsAt).getTime()
+}
+
+/** A claimed seat is unavailable; so is one the auditorium took out of service. */
+export function isSeatAvailable(
+  seat: { id: string; outOfService: boolean },
+  claimedSeatIds: ReadonlySet<string>,
+): boolean {
+  return !seat.outOfService && !claimedSeatIds.has(seat.id)
 }
 
 /** Half-open overlap: touching at an endpoint is not a conflict. */

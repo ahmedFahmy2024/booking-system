@@ -1,8 +1,20 @@
 import { checkoutRequestSchema } from '@booking-system/cinema-contracts'
 import { z } from 'zod'
 
-/** The payload the confirmation API will accept in B4.2. */
+/** The payload the confirmation API accepts. */
 export type CheckoutRequest = z.output<typeof checkoutRequestSchema>
+
+/** Public fields returned by the confirmation write; never a guest credential. */
+export interface ConfirmedBooking {
+  id: string
+  reference: string
+  showtimeId: string
+  seatIds: string[]
+  customerEmail: string
+  startsAt: string
+  unitPricePiastres: number
+  totalPiastres: number
+}
 
 /**
  * Raw form values use a plain email field name. Validation itself is derived

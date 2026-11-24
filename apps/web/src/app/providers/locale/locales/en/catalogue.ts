@@ -35,6 +35,8 @@ export default {
   seatListSeparator: ', ',
   unitPrice: 'Price per seat: {{price}}',
   totalPrice: 'Total: {{total}} for {{seatCount}} seats',
-  checkoutReady: 'Selection checked: {{seatCount}} seats, {{total}}, {{email}}.',
+  confirming: 'Confirming booking...',
+  confirmFailed: 'Could not confirm the booking. Check the seats and try again.',
+  bookingConfirmed: 'Booking confirmed as {{reference}} for {{total}}.',
   confirmSelection: 'Confirm selection',
 } as const

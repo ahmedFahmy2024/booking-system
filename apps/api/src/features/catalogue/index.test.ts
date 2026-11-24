@@ -67,6 +67,13 @@ function request(path: string) {
   return app.request(path)
 }
 
+/** The seat map performs a second select for claims after loading the showtime. */
+function mapSelects(rows: unknown[], claimedSeatIds: string[] = []) {
+  mocks.select
+    .mockReturnValueOnce(chain(rows))
+    .mockReturnValueOnce(chain(claimedSeatIds.map((seatId) => ({ seatId }))))
+}
+
 const catalogueRow = (overrides: Record<string, unknown> = {}) => ({
   filmId: FILM_ID,
   title: 'title A',
@@ -288,8 +295,8 @@ describe('public showtime heading', () => {
 })
 
 describe('public seat map', () => {
-  it('returns labelled seats with availability derived from the snapshot', async () => {
-    mocks.select.mockReturnValue(chain([mapRow()]))
+  it('returns labelled seats with availability derived from the snapshot and claims', async () => {
+    mapSelects([mapRow()], ['seat-1'])
 
     const res = await request(`/showtimes/${SHOWTIME_ID}/seat-map`)
 
@@ -304,7 +311,7 @@ describe('public seat map', () => {
           seatNumber: 1,
           aisleAfter: true,
           outOfService: false,
-          available: true,
+          available: false,
         },
         {
           id: 'seat-2',
@@ -318,11 +325,25 @@ describe('public seat map', () => {
     })
   })
 
+  it('keeps other seats available when one seat has been claimed', async () => {
+    const twoSeatSnapshot = {
+      ...snapshot,
+      seats: [snapshot.seats[0], { ...snapshot.seats[1], outOfService: false }],
+    }
+    mapSelects([mapRow({ layoutSnapshot: twoSeatSnapshot })], ['seat-1'])
+
+    const res = await request(`/showtimes/${SHOWTIME_ID}/seat-map`)
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.seats.map((seat: { available: boolean }) => seat.available)).toEqual([false, true])
+  })
+
   it('uses the frozen auditorium name and filters out past showtimes', async () => {
     const selected = chain([
       mapRow({ layoutSnapshot: { ...snapshot, auditoriumName: 'Frozen Hall' } }),
     ])
-    mocks.select.mockReturnValue(selected)
+    mocks.select.mockReturnValueOnce(selected).mockReturnValueOnce(chain([]))
 
     const res = await request(`/showtimes/${SHOWTIME_ID}/seat-map`)
 
@@ -339,9 +360,7 @@ describe('public seat map', () => {
     ['a draft', SHOWTIME_ID, { status: 'draft' }],
     ['a cancelled showtime', SHOWTIME_ID, { status: 'cancelled' }],
   ])('gives the same generic denial for %s', async (_label, id, overrides: Record<string, unknown> = {}) => {
-    mocks.select.mockReturnValue(
-      chain(Object.keys(overrides).length ? [mapRow(overrides)] : []),
-    )
+    mapSelects(Object.keys(overrides).length ? [mapRow(overrides)] : [])
 
     const res = await request(`/showtimes/${id}/seat-map`)
 
@@ -351,7 +370,7 @@ describe('public seat map', () => {
   })
 
   it('does not expose a published showtime with a missing snapshot', async () => {
-    mocks.select.mockReturnValue(chain([mapRow({ layoutSnapshot: null })]))
+    mapSelects([mapRow({ layoutSnapshot: null })])
 
     const res = await request(`/showtimes/${SHOWTIME_ID}/seat-map`)
 
@@ -360,7 +379,7 @@ describe('public seat map', () => {
   })
 
   it('is a read-only path that does not require a staff session', async () => {
-    mocks.select.mockReturnValue(chain([mapRow()]))
+    mapSelects([mapRow()])
 
     await request(`/showtimes/${SHOWTIME_ID}/seat-map`)
 

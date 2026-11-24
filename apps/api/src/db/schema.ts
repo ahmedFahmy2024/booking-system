@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm'
-import { index, integer, pgTable, serial, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { check, index, integer, pgTable, serial, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import { showtimes } from './cinema-schema.js'
 
 export * from './auth-schema.js'
@@ -21,9 +21,8 @@ const referenceDefault = sql`'bkg_' || replace(gen_random_uuid()::text, '-', '')
 
 export const bookings = pgTable('bookings', {
   id: uuid('id').primaryKey().defaultRandom(),
-  serviceId: integer('service_id')
-    .notNull()
-    .references(() => services.id),
+  /** Prototype rows keep a service; a cinema booking is scoped by showtime instead. */
+  serviceId: integer('service_id').references(() => services.id),
   customerName: text('customer_name').notNull(),
   customerEmail: text('customer_email').notNull(),
   startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
@@ -41,9 +40,45 @@ export const bookings = pgTable('bookings', {
    * B4 populates it and derives guest-link expiry from showtime.starts_at.
    */
   showtimeId: uuid('showtime_id').references(() => showtimes.id),
-}, (t) => [index('bookings_showtime_id_idx').on(t.showtimeId)])
+  /** Accepted unit price snapshotted at confirmation; NULL on prototype rows. */
+  unitPricePiastres: integer('unit_price_piastres'),
+  /** Accepted total snapshotted at confirmation; NULL on prototype rows. */
+  totalPiastres: integer('total_piastres'),
+}, (t) => [
+  index('bookings_showtime_id_idx').on(t.showtimeId),
+  check('bookings_unit_price_positive', sql`${t.unitPricePiastres} is null or ${t.unitPricePiastres} > 0`),
+  check('bookings_total_positive', sql`${t.totalPiastres} is null or ${t.totalPiastres} > 0`),
+])
 
-export const bookingsRelations = relations(bookings, ({ one }) => ({
+/**
+ * One row per claimed seat. The unique `(showtime_id, seat_id)` index is the
+ * Postgres arbiter for competing confirmations: a multi-seat insert is atomic,
+ * so a request that loses any seat creates neither the booking nor a partial
+ * claim. Seat ids come from the frozen showtime snapshot rather than the live
+ * seats table, whose rows may be replaced by a later auditorium edit.
+ */
+export const bookingSeats = pgTable('booking_seats', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  bookingId: uuid('booking_id')
+    .notNull()
+    .references(() => bookings.id, { onDelete: 'cascade' }),
+  showtimeId: uuid('showtime_id')
+    .notNull()
+    .references(() => showtimes.id),
+  seatId: uuid('seat_id').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('booking_seats_showtime_seat_unique').on(t.showtimeId, t.seatId),
+  index('booking_seats_booking_id_idx').on(t.bookingId),
+])
+
+export const bookingsRelations = relations(bookings, ({ one, many }) => ({
   service: one(services, { fields: [bookings.serviceId], references: [services.id] }),
   showtime: one(showtimes, { fields: [bookings.showtimeId], references: [showtimes.id] }),
+  seats: many(bookingSeats),
+}))
+
+export const bookingSeatsRelations = relations(bookingSeats, ({ one }) => ({
+  booking: one(bookings, { fields: [bookingSeats.bookingId], references: [bookings.id] }),
+  showtime: one(showtimes, { fields: [bookingSeats.showtimeId], references: [showtimes.id] }),
 }))

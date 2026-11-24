@@ -3,16 +3,14 @@ import { Hono, type Context } from 'hono'
 import { z } from 'zod'
 import type { AuthEnv } from '../../auth/middleware.js'
 import { getDb } from '../../db/index.js'
-import { auditoriums, films, showtimes } from '../../db/schema.js'
+import { auditoriums, bookingSeats, films, showtimes } from '../../db/schema.js'
+import { isBookingClosed, isSeatAvailable } from '../showtimes/schedule.js'
 
 /**
  * B3.4 public reads. All four actors in the permission matrix may browse
  * published showtimes and read their frozen seat map, so these routes have no
  * auth middleware. They are reads only: no booking state is changed here.
  */
-
-/** Per the accepted booking rules, online checkout closes 15 minutes before start. */
-const BOOKING_CUTOFF_MINUTES = 15
 
 const idSchema = z.uuid()
 
@@ -143,7 +141,6 @@ export const publicShowtimeRoutes = new Hono<AuthEnv>()
 
     if (!row || !isPublished(row)) return notFound(c)
 
-    const cutoffAt = new Date(row.startsAt.getTime() - BOOKING_CUTOFF_MINUTES * 60_000)
     return c.json({
       id: row.id,
       filmId: row.filmId,
@@ -154,13 +151,12 @@ export const publicShowtimeRoutes = new Hono<AuthEnv>()
       startsAt: row.startsAt.toISOString(),
       auditoriumName: frozenAuditoriumName(row.layoutSnapshot, row.auditoriumName),
       pricePiastres: row.pricePiastres,
-      bookingClosed: Date.now() >= cutoffAt.getTime(),
+      bookingClosed: isBookingClosed(row.startsAt),
     })
   })
   /**
-   * `GET /showtimes/:id/seat-map`: the frozen layout with one derived
-   * availability field. Seat claims arrive in B4; until then a seat is
-   * available when the auditorium did not mark it out of service at publish.
+   * `GET /showtimes/:id/seat-map`: the frozen layout with availability derived
+   * from the same out-of-service and claim set that the B4.2 confirmation uses.
    */
   .get('/:id/seat-map', async (c) => {
     const parsed = idSchema.safeParse(c.req.param('id'))
@@ -181,6 +177,12 @@ export const publicShowtimeRoutes = new Hono<AuthEnv>()
     if (!row || !isPublished(row)) return notFound(c)
     if (!row.layoutSnapshot) return c.json({ error: 'seat_map_unavailable' }, 409)
 
+    const claimedRows = await getDb()
+      .select({ seatId: bookingSeats.seatId })
+      .from(bookingSeats)
+      .where(eq(bookingSeats.showtimeId, parsed.data))
+    const claimedSeatIds = new Set(claimedRows.map((claimed) => claimed.seatId))
+
     const snapshot = row.layoutSnapshot as LayoutSnapshot
     return c.json({
       showtimeId: row.id,
@@ -191,7 +193,7 @@ export const publicShowtimeRoutes = new Hono<AuthEnv>()
         seatNumber: seat.seatNumber,
         aisleAfter: seat.aisleAfter,
         outOfService: seat.outOfService,
-        available: !seat.outOfService,
+        available: isSeatAvailable(seat, claimedSeatIds),
       })),
     })
   })

@@ -11,12 +11,12 @@ import {
 const mocks = vi.hoisted(() => {
   const select = vi.fn()
   const from = vi.fn()
-  const innerJoin = vi.fn()
+  const leftJoin = vi.fn()
   const where = vi.fn()
   const limit = vi.fn()
   const getSession = vi.fn()
 
-  return { select, from, innerJoin, where, limit, getSession }
+  return { select, from, leftJoin, where, limit, getSession }
 })
 
 vi.mock('../../auth.js', () => ({
@@ -84,8 +84,8 @@ function expectGenericDenial(res: Response) {
 beforeEach(() => {
   vi.resetAllMocks()
   mocks.select.mockReturnValue({ from: mocks.from })
-  mocks.from.mockReturnValue({ innerJoin: mocks.innerJoin })
-  mocks.innerJoin.mockReturnValue({ where: mocks.where })
+  mocks.from.mockReturnValue({ leftJoin: mocks.leftJoin })
+  mocks.leftJoin.mockReturnValue({ where: mocks.where })
   mocks.where.mockReturnValue({ limit: mocks.limit })
   mocks.limit.mockResolvedValue([])
   mocks.getSession.mockResolvedValue(null)

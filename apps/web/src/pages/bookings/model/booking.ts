@@ -11,7 +11,8 @@ export interface Booking {
   customerName: string
   customerEmail: string
   startsAt: string
-  serviceName: string
+  /** Cinema bookings have no prototype service. */
+  serviceName: string | null
 }
 
 export interface CreatedBooking {

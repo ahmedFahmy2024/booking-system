@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // auth.api.getSession(). Mock both boundaries so tests need no DATABASE_URL and
 // never reach Neon. vi.hoisted runs before vi.mock is hoisted.
 const mocks = vi.hoisted(() => {
-  const innerJoin = vi.fn()
+  const leftJoin = vi.fn()
   const from = vi.fn()
   const returning = vi.fn()
   const values = vi.fn()
@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => {
   return {
     select: vi.fn(),
     insert: vi.fn(),
-    innerJoin,
+    leftJoin,
     from,
     values,
     returning,
@@ -107,9 +107,9 @@ beforeEach(() => {
   clearCapturedMessages()
   mocks.select.mockReturnValue({ from: mocks.from })
   mocks.insert.mockReturnValue({ values: mocks.values })
-  mocks.from.mockReturnValue({ innerJoin: mocks.innerJoin, where: mocks.where })
+  mocks.from.mockReturnValue({ leftJoin: mocks.leftJoin, where: mocks.where })
   mocks.values.mockReturnValue({ returning: mocks.returning })
-  mocks.innerJoin.mockResolvedValue([])
+  mocks.leftJoin.mockResolvedValue([])
   mocks.where.mockReturnValue({ limit: mocks.limit })
   mocks.limit.mockResolvedValue([])
   mocks.update.mockReturnValue({ set: mocks.set })
@@ -136,7 +136,7 @@ describe('bookings routes', () => {
 
     it('allows operations staff and keeps the existing response contract', async () => {
       mocks.getSession.mockResolvedValue(operationsSession)
-      mocks.innerJoin.mockResolvedValueOnce([storedBooking])
+      mocks.leftJoin.mockResolvedValueOnce([storedBooking])
 
       const res = await listBookings()
 
@@ -146,7 +146,7 @@ describe('bookings routes', () => {
 
     it('allows an admin and keeps the existing response contract', async () => {
       mocks.getSession.mockResolvedValue(adminSession)
-      mocks.innerJoin.mockResolvedValueOnce([storedBooking])
+      mocks.leftJoin.mockResolvedValueOnce([storedBooking])
 
       const res = await listBookings()
 

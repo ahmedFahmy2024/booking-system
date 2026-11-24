@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bookingCutoffAt,
   cairoWallClockToInstant,
+  isBookingClosed,
+  isSeatAvailable,
   occupancyOf,
   schedulesOverlap,
   SHOWTIME_TURNAROUND_MINUTES,
@@ -74,5 +77,24 @@ describe('auditorium occupancy', () => {
     expect(
       () => occupancyOf({ startsAt: at('2026-01-15T17:00:00Z'), durationMinutes: 120 }, -1),
     ).toThrow(RangeError)
+  })
+})
+
+describe('booking window and seat availability', () => {
+  const startsAt = at('2026-12-01T10:00:00Z')
+
+  it('closes booking at the exact cutoff and accepts one millisecond before it', () => {
+    const cutoff = bookingCutoffAt(startsAt)
+    expect(cutoff.toISOString()).toBe('2026-12-01T09:45:00.000Z')
+    expect(isBookingClosed(startsAt, new Date(cutoff.getTime() - 1))).toBe(false)
+    expect(isBookingClosed(startsAt, cutoff)).toBe(true)
+    expect(isBookingClosed(startsAt, new Date(cutoff.getTime() + 1))).toBe(true)
+  })
+
+  it('derives availability from the out-of-service flag and the claim set', () => {
+    const claimed = new Set(['seat-2'])
+    expect(isSeatAvailable({ id: 'seat-1', outOfService: false }, claimed)).toBe(true)
+    expect(isSeatAvailable({ id: 'seat-2', outOfService: false }, claimed)).toBe(false)
+    expect(isSeatAvailable({ id: 'seat-3', outOfService: true }, claimed)).toBe(false)
   })
 })

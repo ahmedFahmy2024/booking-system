@@ -2,7 +2,6 @@ import { zValidator } from '@hono/zod-validator'
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { webUrl } from '../../auth.js'
 import type { AuthEnv } from '../../auth/middleware.js'
 import { requireStaff } from '../../auth/middleware.js'
 import { getDb } from '../../db/index.js'
@@ -14,14 +13,18 @@ import {
   decryptGuestCredential,
   encryptGuestCredential,
   guestLinkExpiresAt,
-  guestLinkUrl,
   guestLinkVerifier,
   isGuestLinkExpired,
   verifyGuestLinkVerifier,
 } from '../guest/credentials.js'
-import { sendMail } from '../mail/index.js'
+import { confirmationRoutes } from './confirmation.js'
+import { sendGuestLink } from './guest-link.js'
 
 export const bookingsRoutes = new Hono<AuthEnv>()
+
+// B4.2: the cinema confirmation write shares the /bookings prefix with the
+// prototype endpoints but uses the shared checkout schema and seat claims.
+bookingsRoutes.route('/confirm', confirmationRoutes)
 
 const createBookingSchema = z.object({
   serviceId: z.number().int().positive(),
@@ -29,22 +32,6 @@ const createBookingSchema = z.object({
   customerEmail: z.email(),
   startsAt: z.iso.datetime(),
 })
-
-// The private credential is only ever placed in this email. A delivery failure
-// leaves the booking and its stored link intact so staff can resend it.
-async function sendGuestLink(to: string, reference: string, credential: string): Promise<void> {
-  try {
-    await sendMail({
-      to,
-      subject: 'رابط حجزك الخاص',
-      text: `لعرض تفاصيل حجزك استخدم هذا الرابط الخاص: ${guestLinkUrl(webUrl, reference, credential)}`,
-      kind: 'guest-link',
-    })
-  } catch {
-    // Log only the support reference, never the credential or the link.
-    console.error('Guest link email failed for booking', reference)
-  }
-}
 
 // The list is a staff view of every booking. Operations and admin may read it;
 // a public visitor has no session, and a guest link holder has no staff session.
@@ -58,7 +45,8 @@ bookingsRoutes.get('/', requireStaff, async (c) => {
       serviceName: services.name,
     })
     .from(bookings)
-    .innerJoin(services, eq(bookings.serviceId, services.id))
+    // A cinema booking has no prototype service; keep it visible to staff.
+    .leftJoin(services, eq(bookings.serviceId, services.id))
 
   return c.json(rows)
 })
