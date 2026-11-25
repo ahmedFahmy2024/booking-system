@@ -1,8 +1,8 @@
-import { checkoutRequestSchema } from '@booking-system/cinema-contracts'
+import { checkoutConfirmationSchema, checkoutRequestSchema } from '@booking-system/cinema-contracts'
 import { z } from 'zod'
 
-/** The payload the confirmation API accepts. */
-export type CheckoutRequest = z.output<typeof checkoutRequestSchema>
+/** The payload the confirmation API accepts, including the reviewed unit price. */
+export type CheckoutRequest = z.output<typeof checkoutConfirmationSchema>
 
 /** Public fields returned by the confirmation write; never a guest credential. */
 export interface ConfirmedBooking {
@@ -35,11 +35,13 @@ export function emptyCheckoutFormValues(): CheckoutFormValues {
 export function toCheckoutRequest(
   showtimeId: string,
   values: CheckoutFormOutput,
+  quotedUnitPricePiastres: number,
 ): CheckoutRequest {
-  return checkoutRequestSchema.parse({
+  return checkoutConfirmationSchema.parse({
     showtimeId,
     seatIds: values.seatIds,
     customerEmail: values.email,
+    quotedUnitPricePiastres,
   })
 }
 

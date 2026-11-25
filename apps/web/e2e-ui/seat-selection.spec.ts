@@ -42,6 +42,7 @@ async function stubApi(page: Page) {
     const payload = route.request().postDataJSON() as {
       seatIds: string[]
       customerEmail: string
+      quotedUnitPricePiastres: number
     }
     route.fulfill({
       status: 201,
@@ -129,9 +130,7 @@ test('keeps the selection and email on a bad email and accepts the retry', async
   await expect(page.getByText('Enter a valid email address.')).toHaveCount(0)
 })
 
-test('keeps the selection and email after a server conflict, then confirms the retry', async ({
-  page,
-}) => {
+test('prunes a taken seat after a conflict and confirms the remaining one', async ({ page }) => {
   await useEnglish(page)
   await page.goto(`/showtimes/${showtimeId}`)
 
@@ -139,7 +138,14 @@ test('keeps the selection and email after a server conflict, then confirms the r
   await page.route('**/api/bookings/confirm', (route) => {
     attempts += 1
     if (attempts === 1) {
-      route.fulfill({ status: 409, json: { error: 'seat_unavailable' } })
+      route.fulfill({
+        status: 409,
+        json: {
+          error: 'seat_unavailable',
+          unitPricePiastres: detail.pricePiastres,
+          availableSeatIds: [seatIds[1]],
+        },
+      })
       return
     }
     const payload = route.request().postDataJSON() as { seatIds: string[]; customerEmail: string }
@@ -159,19 +165,79 @@ test('keeps the selection and email after a server conflict, then confirms the r
   })
 
   await page.getByRole('button', { name: 'Seat A1 — available' }).click()
+  await page.getByRole('button', { name: 'Seat A2 — available' }).click()
   const email = page.getByLabel('Your email address')
   await email.fill('guest@example.com')
   await page.getByRole('button', { name: 'Confirm selection' }).click()
 
-  await expect(page.getByRole('alert')).toContainText('Could not confirm the booking')
+  await expect(page.getByRole('alert')).toContainText('Some of the selected seats are no longer')
   await expect(email).toHaveValue('guest@example.com')
   await expect(page.getByRole('button', { name: 'Seat A1 — available' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  )
+  await expect(page.getByRole('button', { name: 'Seat A2 — available' })).toHaveAttribute(
     'aria-pressed',
     'true',
   )
 
   await page.getByRole('button', { name: 'Confirm selection' }).click()
   await expect(page.getByText(/Booking confirmed/)).toContainText(`bkg_${'b'.repeat(32)}`)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})
+
+test('requires explicit confirmation when the price changed before checkout', async ({ page }) => {
+  await useEnglish(page)
+  await page.goto(`/showtimes/${showtimeId}`)
+
+  const quoted: number[] = []
+  let attempts = 0
+  await page.route('**/api/bookings/confirm', (route) => {
+    const payload = route.request().postDataJSON() as {
+      seatIds: string[]
+      customerEmail: string
+      quotedUnitPricePiastres: number
+    }
+    quoted.push(payload.quotedUnitPricePiastres)
+    attempts += 1
+    if (attempts === 1) {
+      route.fulfill({
+        status: 409,
+        json: {
+          error: 'price_changed',
+          unitPricePiastres: 3000,
+          availableSeatIds: payload.seatIds,
+        },
+      })
+      return
+    }
+    route.fulfill({
+      status: 201,
+      json: {
+        id: '33333333-3333-4333-8333-333333333333',
+        reference: `bkg_${'c'.repeat(32)}`,
+        showtimeId,
+        seatIds: payload.seatIds,
+        customerEmail: payload.customerEmail,
+        startsAt: detail.startsAt,
+        unitPricePiastres: 3000,
+        totalPiastres: 3000 * payload.seatIds.length,
+      },
+    })
+  })
+
+  await page.getByRole('button', { name: 'Seat A1 — available' }).click()
+  await page.getByLabel('Your email address').fill('guest@example.com')
+  await page.getByRole('button', { name: 'Confirm selection' }).click()
+
+  await expect(page.getByRole('alert')).toContainText('The seat price changed')
+  await expect(page.getByText(/Total:/)).toContainText(egp(3000))
+  await expect(page.getByRole('button', { name: 'Confirm selection' })).toBeDisabled()
+  expect(quoted).toEqual([2500])
+
+  await page.getByRole('button', { name: 'Confirm the new total' }).click()
+  await expect(page.getByText(/Booking confirmed/)).toContainText(`bkg_${'c'.repeat(32)}`)
+  expect(quoted).toEqual([2500, 3000])
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
 

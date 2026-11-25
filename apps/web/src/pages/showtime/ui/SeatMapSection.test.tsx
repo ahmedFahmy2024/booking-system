@@ -107,6 +107,21 @@ describe('SeatMapSection', () => {
     expect(onToggleSeat).not.toHaveBeenCalled()
   })
 
+  it('names a claimed seat as booked rather than out of service', () => {
+    mocks.useSeatMap.mockReturnValue({
+      seatMap: {
+        showtimeId: 'showtime-1',
+        auditoriumName: 'Hall 1',
+        seats: [seat({ available: false })],
+      },
+    })
+
+    renderMap()
+
+    expect(screen.getByRole('button', { name: 'المقعد A1 — محجوز' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'المقعد A1 — خارج الخدمة' })).toBeNull()
+  })
+
   it('announces the seat limit without changing the map', () => {
     renderMap({ selectedSeatIds: ['seat-1'], atSeatLimit: true })
 

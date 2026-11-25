@@ -37,6 +37,12 @@ export default {
   totalPrice: 'Total: {{total}} for {{seatCount}} seats',
   confirming: 'Confirming booking...',
   confirmFailed: 'Could not confirm the booking. Check the seats and try again.',
+  seatsTaken: 'Some of the selected seats are no longer available. Review your choice and try again.',
+  priceChanged:
+    'The seat price changed to {{price}}. New total for {{seatCount}} seats: {{total}}. Please confirm to continue.',
+  confirmRevisedTotal: 'Confirm the new total',
+  bookingClosedError: 'Online booking for this showtime has closed.',
+  tooManyRequests: 'Too many attempts. Please wait and try again.',
   bookingConfirmed: 'Booking confirmed as {{reference}} for {{total}}.',
   confirmSelection: 'Confirm selection',
 } as const

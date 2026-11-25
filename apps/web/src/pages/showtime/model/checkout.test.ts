@@ -1,4 +1,8 @@
-import { checkoutRequestSchema, MAX_BOOKING_SEATS } from '@booking-system/cinema-contracts'
+import {
+  checkoutConfirmationSchema,
+  checkoutRequestSchema,
+  MAX_BOOKING_SEATS,
+} from '@booking-system/cinema-contracts'
 import { describe, expect, it } from 'vitest'
 import {
   checkoutFormSchema,
@@ -58,7 +62,24 @@ describe('checkout form mapping', () => {
   it('trims the email and maps it to the shared API field name', () => {
     const values = checkoutFormSchema.parse({ seatIds: [seats[0]], email: '  guest@example.com  ' })
     expect(values.email).toBe('guest@example.com')
-    expect(toCheckoutRequest(showtimeId, values)).toEqual(payload([seats[0]]))
+    expect(toCheckoutRequest(showtimeId, values, 2500)).toEqual({
+      ...payload([seats[0]]),
+      quotedUnitPricePiastres: 2500,
+    })
+  })
+
+  it('sends the reviewed unit price and rejects a non-positive quote', () => {
+    const values = checkoutFormSchema.parse({ seatIds: [seats[0]], email: 'guest@example.com' })
+    expect(toCheckoutRequest(showtimeId, values, 3000)).toEqual({
+      ...payload([seats[0]]),
+      quotedUnitPricePiastres: 3000,
+    })
+    expect(
+      checkoutConfirmationSchema.safeParse({
+        ...payload([seats[0]]),
+        quotedUnitPricePiastres: 0,
+      }).success,
+    ).toBe(false)
   })
 
   it('computes the total from the unit price in piastres', () => {

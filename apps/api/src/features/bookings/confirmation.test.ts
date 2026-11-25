@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
     where,
     limit,
     values,
+    claimRows: [] as Array<{ seatId: string }>,
     getSession: vi.fn(),
   }
 })
@@ -87,9 +88,14 @@ beforeEach(() => {
   vi.resetAllMocks()
   resetRateLimits()
   clearCapturedMessages()
+  mocks.claimRows = []
   mocks.select.mockReturnValue({ from: mocks.from })
   mocks.from.mockReturnValue({ where: mocks.where })
-  mocks.where.mockReturnValue({ limit: mocks.limit })
+  // Drizzle query builders are awaitable as well as chainable: the showtime
+  // read appends .limit(), the claim read awaits the same thenable.
+  mocks.where.mockImplementation(() =>
+    Object.assign(Promise.resolve(mocks.claimRows), { limit: mocks.limit }),
+  )
   mocks.limit.mockResolvedValue([showtimeRow])
   mocks.insert.mockReturnValue({ values: mocks.values })
   mocks.values.mockReturnValue({})
@@ -158,6 +164,8 @@ describe('POST /bookings/confirm — atomic cinema checkout', () => {
       { ...payload, seatIds: [SEAT_1, SEAT_1] },
       { ...payload, showtimeId: 'not-a-uuid' },
       { ...payload, customerEmail: 'not-an-email' },
+      { ...payload, quotedUnitPricePiastres: 0 },
+      { ...payload, quotedUnitPricePiastres: '2500' },
     ]
 
     for (const body of invalid) {
@@ -165,6 +173,48 @@ describe('POST /bookings/confirm — atomic cinema checkout', () => {
     }
     expect(mocks.select).not.toHaveBeenCalled()
     expect(mocks.batch).not.toHaveBeenCalled()
+  })
+
+  it('books at the reviewed unit price when it still matches', async () => {
+    const res = await post({ ...payload, quotedUnitPricePiastres: 2500 })
+
+    expect(res.status).toBe(201)
+    expect((await res.json()).unitPricePiastres).toBe(2500)
+    expect(mocks.batch).toHaveBeenCalledOnce()
+  })
+
+  it('asks the guest to confirm a revised total before writing', async () => {
+    const revised = { ...payload, quotedUnitPricePiastres: 2000 }
+
+    const conflict = await post(revised)
+    expect(conflict.status).toBe(409)
+    expect(await conflict.json()).toEqual({
+      error: 'price_changed',
+      unitPricePiastres: 2500,
+      availableSeatIds: [SEAT_1, SEAT_2],
+    })
+    expect(mocks.batch).not.toHaveBeenCalled()
+    expect(getCapturedMessages()).toHaveLength(0)
+
+    expect((await post({ ...revised, quotedUnitPricePiastres: 2500 })).status).toBe(201)
+    expect(mocks.batch).toHaveBeenCalledOnce()
+  })
+
+  it('returns the still-available subset when a requested seat was taken', async () => {
+    mocks.claimRows = [{ seatId: SEAT_2 }]
+
+    const conflict = await post()
+    expect(conflict.status).toBe(409)
+    expect(await conflict.json()).toEqual({
+      error: 'seat_unavailable',
+      unitPricePiastres: 2500,
+      availableSeatIds: [SEAT_1],
+    })
+    expect(mocks.batch).not.toHaveBeenCalled()
+    expect(getCapturedMessages()).toHaveLength(0)
+
+    expect((await post({ ...payload, seatIds: [SEAT_1] })).status).toBe(201)
+    expect(mocks.batch).toHaveBeenCalledOnce()
   })
 
   it('refuses at the exact 15-minute cutoff and accepts one millisecond before it', async () => {
@@ -229,7 +279,11 @@ describe('POST /bookings/confirm — atomic cinema checkout', () => {
     const res = await post()
 
     expect(res.status).toBe(409)
-    expect(await res.json()).toEqual({ error: 'seat_unavailable' })
+    expect(await res.json()).toEqual({
+      error: 'seat_unavailable',
+      unitPricePiastres: 2500,
+      availableSeatIds: [SEAT_1, SEAT_2],
+    })
     expect(getCapturedMessages()).toHaveLength(0)
     expect(mocks.batch).toHaveBeenCalledOnce()
     expect(mocks.values).toHaveBeenCalledTimes(2)

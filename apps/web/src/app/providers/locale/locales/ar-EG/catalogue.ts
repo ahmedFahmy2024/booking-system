@@ -45,6 +45,11 @@ export default {
   totalPrice: 'الإجمالي لـ {{seatCount}} مقعد: {{total}}',
   confirming: 'جارٍ تأكيد الحجز...',
   confirmFailed: 'تعذّر تأكيد الحجز. تحقق من المقاعد وحاول مرة أخرى.',
+  seatsTaken: 'بعض المقاعد المختارة لم تعد متاحة. راجع اختيارك وحاول مرة أخرى.',
+  priceChanged: 'تغيّر سعر المقعد إلى {{price}}. الإجمالي الجديد لـ {{seatCount}} مقعد: {{total}}. أكّد المتابعة.',
+  confirmRevisedTotal: 'تأكيد الإجمالي الجديد',
+  bookingClosedError: 'انتهى وقت الحجز الإلكتروني لهذا العرض.',
+  tooManyRequests: 'محاولات كثيرة. انتظر قليلاً ثم حاول مرة أخرى.',
   bookingConfirmed: 'تم تأكيد الحجز برقم {{reference}} بمبلغ {{total}}.',
   confirmSelection: 'تأكيد الاختيار',
 } as const

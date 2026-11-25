@@ -7,9 +7,14 @@ export function useConfirmBooking(showtimeId: string) {
 
   return useMutation({
     mutationFn: confirmBooking,
-    // A successful claim changes availability and the accepted price; both
-    // cached reads must be refreshed before the guest sees the map again.
+    // Both a claim and a conflict can change what the guest sees: a successful
+    // claim changes availability, and a denial may follow another guest's claim
+    // or an admin's price change. Refresh both reads so the guest can revise.
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: showtimeKeys.seatMap(showtimeId) })
+      queryClient.invalidateQueries({ queryKey: showtimeKeys.detail(showtimeId) })
+    },
+    onError: () => {
       queryClient.invalidateQueries({ queryKey: showtimeKeys.seatMap(showtimeId) })
       queryClient.invalidateQueries({ queryKey: showtimeKeys.detail(showtimeId) })
     },

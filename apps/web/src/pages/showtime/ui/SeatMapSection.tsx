@@ -65,7 +65,11 @@ export function SeatMapSection({
                 </span>
                 {row.seats.map((seat) => {
                   const label = seatLabel(seat)
-                  const state = seat.available ? t('seatAvailable') : t('seatOutOfService')
+                  const state = seat.available
+                    ? t('seatAvailable')
+                    : seat.outOfService
+                      ? t('seatOutOfService')
+                      : t('seatBooked')
                   const isSelected = selected.has(seat.id)
                   return (
                     <button

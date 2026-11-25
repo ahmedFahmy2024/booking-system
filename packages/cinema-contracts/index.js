@@ -74,3 +74,19 @@ export const checkoutRequestSchema = z.object({
     }),
   customerEmail: z.email(),
 })
+
+/**
+ * The write payload adds the unit price the guest actually reviewed. Omitting
+ * it keeps the older client behavior (book at the server's current price);
+ * sending it makes a price change a conflict the guest must acknowledge.
+ */
+export const checkoutConfirmationSchema = checkoutRequestSchema.extend({
+  quotedUnitPricePiastres: z.number().int().positive().optional(),
+})
+
+/** Conflict details returned with a price or availability failure. */
+export const checkoutConflictSchema = z.object({
+  error: z.enum(['seat_unavailable', 'price_changed']),
+  unitPricePiastres: z.number().int().positive(),
+  availableSeatIds: z.array(z.uuid()),
+})

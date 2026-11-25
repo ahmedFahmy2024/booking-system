@@ -1,4 +1,4 @@
-import { checkoutRequestSchema, MAX_BOOKING_SEATS } from '@booking-system/cinema-contracts'
+import { checkoutConfirmationSchema, MAX_BOOKING_SEATS } from '@booking-system/cinema-contracts'
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { zValidator } from '@hono/zod-validator'
@@ -44,7 +44,7 @@ function selectableSeatIds(snapshot: AuditoriumLayoutSnapshot | null): Set<strin
 confirmationRoutes.post(
   '/',
   rateLimit('checkout', 30),
-  zValidator('json', checkoutRequestSchema),
+  zValidator('json', checkoutConfirmationSchema),
   async (c) => {
     const input = c.req.valid('json')
     const db = getDb()
@@ -85,6 +85,25 @@ confirmationRoutes.post(
     const unitPricePiastres = showtime.pricePiastres
     const totalPiastres = unitPricePiastres * input.seatIds.length
 
+    // Conflict responses carry current details so the guest can keep the seats
+    // that are still available and see the price they must explicitly accept.
+    const claimRows = await db
+      .select({ seatId: bookingSeats.seatId })
+      .from(bookingSeats)
+      .where(eq(bookingSeats.showtimeId, showtime.id))
+    const claimedSeatIds = new Set(claimRows.map((row) => row.seatId))
+    const availableSeatIds = input.seatIds.filter((id) => !claimedSeatIds.has(id))
+
+    if (availableSeatIds.length < input.seatIds.length) {
+      return c.json({ error: 'seat_unavailable', unitPricePiastres, availableSeatIds }, 409)
+    }
+    if (
+      input.quotedUnitPricePiastres !== undefined &&
+      input.quotedUnitPricePiastres !== unitPricePiastres
+    ) {
+      return c.json({ error: 'price_changed', unitPricePiastres, availableSeatIds }, 409)
+    }
+
     // Generate the id here so both inserts in the atomic batch share it. Neon's
     // HTTP batch sends them as one transaction: a losing seat claim rolls the
     // booking insert back instead of leaving a partial reservation.
@@ -117,7 +136,23 @@ confirmationRoutes.post(
         ),
       ])
     } catch (error) {
-      if (isUniqueViolation(error)) return c.json({ error: 'seat_unavailable' }, 409)
+      if (isUniqueViolation(error)) {
+        // A competing claim won between the availability read and the write.
+        // Re-read the claims so the conflict names the seats still available.
+        const currentClaims = await db
+          .select({ seatId: bookingSeats.seatId })
+          .from(bookingSeats)
+          .where(eq(bookingSeats.showtimeId, showtime.id))
+        const current = new Set(currentClaims.map((row) => row.seatId))
+        return c.json(
+          {
+            error: 'seat_unavailable',
+            unitPricePiastres,
+            availableSeatIds: input.seatIds.filter((id) => !current.has(id)),
+          },
+          409,
+        )
+      }
       throw error
     }
 

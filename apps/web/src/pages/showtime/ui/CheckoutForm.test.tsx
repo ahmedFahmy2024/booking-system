@@ -1,13 +1,14 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiRequestError } from '@/shared/api'
 import { formatEgp } from '@/shared/lib'
 import type { Seat } from '../model/showtime'
 
-const mocks = vi.hoisted(() => ({ useSeatMap: vi.fn(), confirm: vi.fn() }))
+const mocks = vi.hoisted(() => ({ useSeatMap: vi.fn(), confirm: vi.fn(), isPending: false }))
 
 vi.mock('../model/useSeatMap', () => ({ useSeatMap: mocks.useSeatMap }))
 vi.mock('../model/useConfirmBooking', () => ({
-  useConfirmBooking: () => ({ mutate: mocks.confirm, isPending: false }),
+  useConfirmBooking: () => ({ mutate: mocks.confirm, isPending: mocks.isPending }),
 }))
 
 import { CheckoutForm } from './CheckoutForm'
@@ -59,6 +60,7 @@ function expectPrice(prefix: string, piastres: number) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mocks.isPending = false
   mocks.useSeatMap.mockReturnValue({
     seatMap: {
       showtimeId: 'showtime-1',
@@ -121,10 +123,15 @@ describe('CheckoutForm', () => {
     await waitFor(() => {
       expect(screen.getByText(/تم تأكيد الحجز/)).toBeDefined()
     })
+    // A confirmed seat is now unavailable to this guest, so the form clears it.
+    expect(screen.getByRole('button', { name: 'المقعد A1 — متاح' }).getAttribute('aria-pressed')).toBe(
+      'false',
+    )
 
     fireEvent.change(email, { target: { value: 'another@example.com' } })
     expect(screen.queryByText(/تم تأكيد الحجز/)).toBeNull()
 
+    clickSeat(1)
     submit()
     await waitFor(() => {
       expect(screen.getByText(/تم تأكيد الحجز/)).toBeDefined()
@@ -153,7 +160,12 @@ describe('CheckoutForm', () => {
 
     await waitFor(() => {
       expect(mocks.confirm).toHaveBeenCalledWith(
-        { showtimeId, seatIds: [seatIds[0]], customerEmail: 'guest@example.com' },
+        {
+          showtimeId,
+          seatIds: [seatIds[0]],
+          customerEmail: 'guest@example.com',
+          quotedUnitPricePiastres: 2500,
+        },
         expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
       )
     })
@@ -188,5 +200,142 @@ describe('CheckoutForm', () => {
       expect(screen.getByText(/تم تأكيد الحجز/)).toBeDefined()
     })
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('prunes taken seats, keeps the others and the email, then confirms the retry', async () => {
+    renderForm()
+    const email = screen.getByLabelText('بريدك الإلكتروني')
+    clickSeat(1)
+    clickSeat(2)
+    fireEvent.change(email, { target: { value: 'guest@example.com' } })
+    mocks.confirm.mockImplementation(
+      (
+        _payload: unknown,
+        options?: { onError?: (error: unknown) => void },
+      ) =>
+        options?.onError?.(
+          new ApiRequestError('seat_unavailable', 409, 'seat_unavailable', {
+            unitPricePiastres: 2500,
+            availableSeatIds: [seatIds[0]],
+          }),
+        ),
+    )
+
+    submit()
+    await waitFor(() => {
+      expect(screen.getByText('بعض المقاعد المختارة لم تعد متاحة. راجع اختيارك وحاول مرة أخرى.')).toBeDefined()
+    })
+    expect(screen.getByRole('button', { name: 'المقعد A1 — متاح' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'المقعد A2 — متاح' }).getAttribute('aria-pressed')).toBe('false')
+    expect((email as HTMLInputElement).value).toBe('guest@example.com')
+
+    mocks.confirm.mockImplementation(
+      (_payload: unknown, options?: { onSuccess?: (value: typeof confirmedBooking) => void }) =>
+        options?.onSuccess?.(confirmedBooking),
+    )
+    submit()
+    await waitFor(() => {
+      expect(screen.getByText(/تم تأكيد الحجز/)).toBeDefined()
+    })
+    expect(mocks.confirm).toHaveBeenLastCalledWith(
+      expect.objectContaining({ seatIds: [seatIds[0]] }),
+      expect.anything(),
+    )
+  })
+
+  it('requires an explicit action to accept a revised price', async () => {
+    renderForm()
+    clickSeat(1)
+    fireEvent.change(screen.getByLabelText('بريدك الإلكتروني'), {
+      target: { value: 'guest@example.com' },
+    })
+    mocks.confirm.mockImplementation(
+      (_payload: unknown, options?: { onError?: (error: unknown) => void }) =>
+        options?.onError?.(
+          new ApiRequestError('price_changed', 409, 'price_changed', {
+            unitPricePiastres: 3000,
+            availableSeatIds: [seatIds[0]],
+          }),
+        ),
+    )
+
+    submit()
+    await waitFor(() => {
+      expect(screen.getByText(/تغيّر سعر المقعد إلى/)).toBeDefined()
+    })
+    expect(mocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({ quotedUnitPricePiastres: 2500 }),
+      expect.anything(),
+    )
+    expect(screen.getByRole('button', { name: 'تأكيد الاختيار' })).toHaveProperty('disabled', true)
+    const total = screen.getByText(
+      (_, element) =>
+        element?.tagName === 'P' && (element.textContent ?? '').startsWith('الإجمالي لـ'),
+    )
+    expect(total.textContent).toContain(formatEgp(3000, 'ar-EG'))
+
+    mocks.confirm.mockImplementation(
+      (_payload: unknown, options?: { onSuccess?: (value: typeof confirmedBooking) => void }) =>
+        options?.onSuccess?.(confirmedBooking),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'تأكيد الإجمالي الجديد' }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/تم تأكيد الحجز/)).toBeDefined()
+    })
+    expect(mocks.confirm).toHaveBeenLastCalledWith(
+      expect.objectContaining({ quotedUnitPricePiastres: 3000 }),
+      expect.anything(),
+    )
+    expect(screen.queryByText(/تغيّر سعر المقعد إلى/)).toBeNull()
+  })
+
+  it('disables the revised-total action while a request is pending', async () => {
+    const { rerender } = renderForm()
+    clickSeat(1)
+    fireEvent.change(screen.getByLabelText('بريدك الإلكتروني'), {
+      target: { value: 'guest@example.com' },
+    })
+    mocks.confirm.mockImplementation(
+      (_payload: unknown, options?: { onError?: (error: unknown) => void }) =>
+        options?.onError?.(
+          new ApiRequestError('price_changed', 409, 'price_changed', {
+            unitPricePiastres: 3000,
+            availableSeatIds: [seatIds[0]],
+          }),
+        ),
+    )
+
+    submit()
+    await waitFor(() => {
+      expect(screen.getByText(/تغيّر سعر المقعد إلى/)).toBeDefined()
+    })
+
+    mocks.isPending = true
+    rerender(<CheckoutForm showtimeId={showtimeId} pricePiastres={2500} bookingClosed={false} />)
+
+    expect(screen.getByRole('button', { name: 'تأكيد الإجمالي الجديد' })).toHaveProperty(
+      'disabled',
+      true,
+    )
+  })
+
+  it('maps a known denial code to a localized message', async () => {
+    renderForm()
+    clickSeat(1)
+    fireEvent.change(screen.getByLabelText('بريدك الإلكتروني'), {
+      target: { value: 'guest@example.com' },
+    })
+    mocks.confirm.mockImplementation(
+      (_payload: unknown, options?: { onError?: (error: unknown) => void }) =>
+        options?.onError?.(new ApiRequestError('booking_closed', 409, 'booking_closed', {})),
+    )
+
+    submit()
+
+    await waitFor(() => {
+      expect(screen.getByText('انتهى وقت الحجز الإلكتروني لهذا العرض.')).toBeDefined()
+    })
+    expect(screen.getByRole('button', { name: 'المقعد A1 — متاح' }).getAttribute('aria-pressed')).toBe('true')
   })
 })
