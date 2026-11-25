@@ -1,12 +1,17 @@
-import { checkoutConfirmationSchema, MAX_BOOKING_SEATS } from '@booking-system/cinema-contracts'
-import { randomUUID } from 'node:crypto'
+import {
+  canonicalCheckoutPayload,
+  checkoutConfirmationSchema,
+  idempotencyKeyHeaderSchema,
+  MAX_BOOKING_SEATS,
+} from '@booking-system/cinema-contracts'
+import { createHash, randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import type { AuthEnv } from '../../auth/middleware.js'
 import { auditoriums, films, showtimes, type AuditoriumLayoutSnapshot } from '../../db/cinema-schema.js'
 import { getDb } from '../../db/index.js'
-import { bookingSeats, bookings } from '../../db/schema.js'
+import { bookingSeats, bookings, type StoredConfirmationResponse } from '../../db/schema.js'
 import { rateLimit } from '../../rate-limit.js'
 import {
   createBookingReference,
@@ -21,14 +26,22 @@ import { sendGuestLink } from './guest-link.js'
 /** The public cinema confirmation write, mounted at /bookings/confirm. */
 export const confirmationRoutes = new Hono<AuthEnv>()
 
-/** Drizzle wraps the Neon driver error; walk the cause chain for the SQLSTATE. */
-function isUniqueViolation(error: unknown): boolean {
+const IDEMPOTENCY_CONSTRAINT = 'bookings_idempotency_key_unique'
+
+/**
+ * Drizzle wraps the Neon driver error; walk the cause chain for the SQLSTATE
+ * and keep the constraint name so an idempotency race is not misreported as a
+ * competing seat claim. Both constraints can raise 23505. An older driver that
+ * exposes no constraint name keeps the historical seat-conflict behavior.
+ */
+function uniqueViolationConstraint(error: unknown): string | null {
   let current: unknown = error
   while (current instanceof Error) {
-    if ((current as Error & { code?: unknown }).code === '23505') return true
+    const { code, constraint } = current as Error & { code?: unknown; constraint?: unknown }
+    if (code === '23505') return typeof constraint === 'string' ? constraint : ''
     current = current.cause
   }
-  return false
+  return null
 }
 
 /**
@@ -46,13 +59,64 @@ function selectableSeatLabels(snapshot: AuditoriumLayoutSnapshot | null): Map<st
   return labels
 }
 
+/** Only public fields stored for replay; never a guest-link credential. */
+type ReplayRow = {
+  customerEmail: string
+  idempotencyFingerprint: string | null
+  idempotencyResponse: StoredConfirmationResponse | null
+}
+
+async function findByConfirmationKey(
+  db: ReturnType<typeof getDb>,
+  key: string,
+): Promise<ReplayRow | undefined> {
+  const [row] = await db
+    .select({
+      customerEmail: bookings.customerEmail,
+      idempotencyFingerprint: bookings.idempotencyFingerprint,
+      idempotencyResponse: bookings.idempotencyResponse,
+    })
+    .from(bookings)
+    .where(eq(bookings.idempotencyKey, key))
+    .limit(1)
+  return row
+}
+
+type ReplayResult =
+  | { kind: 'missing' }
+  | { kind: 'conflict' }
+  | { kind: 'replay'; response: StoredConfirmationResponse & { customerEmail: string } }
+
+function readReplay(row: ReplayRow | undefined, fingerprint: string): ReplayResult {
+  if (!row) return { kind: 'missing' }
+  if (!row.idempotencyResponse || row.idempotencyFingerprint !== fingerprint) {
+    return { kind: 'conflict' }
+  }
+  // Contact details stay on the booking row only, so D7 retention clears them
+  // without touching the replay snapshot.
+  return { kind: 'replay', response: { ...row.idempotencyResponse, customerEmail: row.customerEmail } }
+}
+
 confirmationRoutes.post(
   '/',
   rateLimit('checkout', 30),
+  zValidator('header', idempotencyKeyHeaderSchema, (result, c) => {
+    if (!result.success) return c.json({ error: 'invalid_idempotency_key' }, 400)
+  }),
   zValidator('json', checkoutConfirmationSchema),
   async (c) => {
     const input = c.req.valid('json')
+    const idempotencyKey = c.req.valid('header')['idempotency-key']
+    const fingerprint = createHash('sha256').update(canonicalCheckoutPayload(input)).digest('hex')
     const db = getDb()
+
+    // A lost response is replayed before any other work: the original booking
+    // and its seat claims already exist and no second email is sent.
+    const replay = readReplay(await findByConfirmationKey(db, idempotencyKey), fingerprint)
+    if (replay.kind === 'conflict') {
+      return c.json({ error: 'idempotency_key_conflict' }, 409)
+    }
+    if (replay.kind === 'replay') return c.json(replay.response, 201)
 
     const [showtime] = await db
       .select({
@@ -125,6 +189,18 @@ confirmationRoutes.post(
     const id = randomUUID()
     const reference = createBookingReference()
     const credential = createGuestCredential()
+    const response: StoredConfirmationResponse = {
+      id,
+      reference,
+      showtimeId: showtime.id,
+      filmTitle: showtime.filmTitle,
+      startsAt: showtime.startsAt.toISOString(),
+      auditoriumName,
+      seatLabels,
+      seatIds: input.seatIds,
+      unitPricePiastres,
+      totalPiastres,
+    }
     try {
       await db.batch([
         db.insert(bookings).values({
@@ -141,6 +217,9 @@ confirmationRoutes.post(
           guestLinkExpiresAt: guestLinkExpiresAt(showtime.startsAt),
           unitPricePiastres,
           totalPiastres,
+          idempotencyKey,
+          idempotencyFingerprint: fingerprint,
+          idempotencyResponse: response,
         }),
         db.insert(bookingSeats).values(
           input.seatIds.map((seatId) => ({
@@ -151,7 +230,16 @@ confirmationRoutes.post(
         ),
       ])
     } catch (error) {
-      if (isUniqueViolation(error)) {
+      const constraint = uniqueViolationConstraint(error)
+      if (constraint === IDEMPOTENCY_CONSTRAINT) {
+        // A concurrent attempt with the same key won between the replay read
+        // and the write. Return exactly what it stored, without a second email.
+        const winner = readReplay(await findByConfirmationKey(db, idempotencyKey), fingerprint)
+        if (winner.kind === 'conflict') return c.json({ error: 'idempotency_key_conflict' }, 409)
+        if (winner.kind === 'replay') return c.json(winner.response, 201)
+        throw error
+      }
+      if (constraint !== null) {
         // A competing claim won between the availability read and the write.
         // Re-read the claims so the conflict names the seats still available.
         const currentClaims = await db
@@ -172,21 +260,6 @@ confirmationRoutes.post(
     }
 
     await sendGuestLink(input.customerEmail, reference, credential)
-    return c.json(
-      {
-        id,
-        reference,
-        showtimeId: showtime.id,
-        filmTitle: showtime.filmTitle,
-        startsAt: showtime.startsAt.toISOString(),
-        auditoriumName,
-        seatLabels,
-        seatIds: input.seatIds,
-        customerEmail: input.customerEmail,
-        unitPricePiastres,
-        totalPiastres,
-      },
-      201,
-    )
+    return c.json({ ...response, customerEmail: input.customerEmail }, 201)
   },
 )

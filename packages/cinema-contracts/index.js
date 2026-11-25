@@ -90,3 +90,28 @@ export const checkoutConflictSchema = z.object({
   unitPricePiastres: z.number().int().positive(),
   availableSeatIds: z.array(z.uuid()),
 })
+
+/**
+ * D4: a stable key travels in a header, separate from the request body so the
+ * payload fingerprint can describe only what the guest actually confirmed.
+ */
+export const idempotencyKeyHeaderSchema = z.object({
+  'idempotency-key': z.uuid(),
+})
+
+/**
+ * Deterministic description of one confirmation attempt. Both sides use it:
+ * the API stores a SHA-256 fingerprint and the web rotates its key when the
+ * payload changes. Property order and seat order are significant because the
+ * replayed confirmation shows the seat labels in the requested order.
+ *
+ * @param {{ showtimeId: string, seatIds: string[], customerEmail: string, quotedUnitPricePiastres?: number }} input
+ */
+export function canonicalCheckoutPayload(input) {
+  return JSON.stringify({
+    showtimeId: input.showtimeId,
+    seatIds: [...input.seatIds],
+    customerEmail: input.customerEmail,
+    quotedUnitPricePiastres: input.quotedUnitPricePiastres ?? null,
+  })
+}

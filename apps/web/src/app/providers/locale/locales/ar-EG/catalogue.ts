@@ -50,6 +50,7 @@ export default {
   confirmRevisedTotal: 'تأكيد الإجمالي الجديد',
   bookingClosedError: 'انتهى وقت الحجز الإلكتروني لهذا العرض.',
   tooManyRequests: 'محاولات كثيرة. انتظر قليلاً ثم حاول مرة أخرى.',
+  idempotencyConflict: 'تغيّر الاختيار بعد إرسال الطلب. راجع المقاعد وحاول مرة أخرى.',
   bookingConfirmed: 'تم تأكيد الحجز برقم {{reference}} بمبلغ {{total}}.',
   confirmationHeading: 'تم تأكيد حجزك',
   confirmFilm: 'الفيلم',

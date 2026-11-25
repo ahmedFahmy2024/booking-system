@@ -6,6 +6,7 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   checkoutFormSchema,
+  checkoutPayloadFingerprint,
   checkoutTotalPiastres,
   emptyCheckoutFormValues,
   toCheckoutRequest,
@@ -85,5 +86,24 @@ describe('checkout form mapping', () => {
   it('computes the total from the unit price in piastres', () => {
     expect(checkoutTotalPiastres(2500, 3)).toBe(7500)
     expect(checkoutTotalPiastres(2500, 0)).toBe(0)
+  })
+
+  it('fingerprints only the confirmed payload, including quote and seat order', () => {
+    const values = checkoutFormSchema.parse({
+      seatIds: [seats[0], seats[1]],
+      email: 'guest@example.com',
+    })
+    const request = toCheckoutRequest(showtimeId, values, 2500)
+    expect(checkoutPayloadFingerprint(request)).toBe(
+      checkoutPayloadFingerprint(toCheckoutRequest(showtimeId, values, 2500)),
+    )
+    expect(checkoutPayloadFingerprint(request)).not.toBe(
+      checkoutPayloadFingerprint(toCheckoutRequest(showtimeId, values, 3000)),
+    )
+    expect(checkoutPayloadFingerprint(request)).not.toBe(
+      checkoutPayloadFingerprint(
+        toCheckoutRequest(showtimeId, { ...values, seatIds: [seats[1], seats[0]] }, 2500),
+      ),
+    )
   })
 })

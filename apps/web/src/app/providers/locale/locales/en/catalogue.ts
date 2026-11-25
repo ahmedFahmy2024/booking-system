@@ -43,6 +43,7 @@ export default {
   confirmRevisedTotal: 'Confirm the new total',
   bookingClosedError: 'Online booking for this showtime has closed.',
   tooManyRequests: 'Too many attempts. Please wait and try again.',
+  idempotencyConflict: 'The selection changed while the request was in flight. Review the seats and try again.',
   bookingConfirmed: 'Booking confirmed as {{reference}} for {{total}}.',
   confirmationHeading: 'Your booking is confirmed',
   confirmFilm: 'Film',

@@ -41,6 +41,7 @@ describe('confirmationErrorKey', () => {
     ['booking_closed', 'bookingClosedError'],
     ['showtime_not_found', 'showtimeNotFound'],
     ['too_many_requests', 'tooManyRequests'],
+    ['idempotency_key_conflict', 'idempotencyConflict'],
     ['invalid_seat', 'confirmFailed'],
     [null, 'confirmFailed'],
   ] as const)('maps %s to %s', (code, key) => {

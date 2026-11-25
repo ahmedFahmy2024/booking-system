@@ -156,7 +156,7 @@ Applies [D2](#d2--guest-link-and-checkout-access), [D4](#d4--booking-prices-and-
 - [x] **B4.2** Claim all seats together at confirmation. Verify the showtime, auditorium, availability, accepted price, quantity, and 15-minute booking cutoff on the server. Verified 2026-11-24; evidence in `docs/progress-tracker.md#b42--atomic-seat-claims-at-confirmation-2026-11-24`.
 - [x] **B4.3** Refresh availability when a seat is taken and keep the available selections. When a price changes before confirmation, show the revised total and ask the guest to confirm it. Verified 2026-11-24; evidence in `docs/progress-tracker.md#b43--availability-refresh-and-revised-total-2026-11-24`.
 - [x] **B4.4** Persist the quoted price and booking reference. Show the film, showtime, auditorium, seat labels, and venue payment instructions on confirmation.
-- [ ] **B4.5** Persist the confirmation idempotency key with the booking. Replay the original outcome for the same request, and return a conflict when the same key is reused with different input.
+- [x] **B4.5** Persist the confirmation idempotency key with the booking. Replay the original outcome for the same request, and return a conflict when the same key is reused with different input. Verified 2026-11-25; evidence in `docs/progress-tracker.md#b45--confirmation-idempotency-2026-11-25`.
 - [ ] **B4.6** Verify the booking path in Playwright and the seat claims against the isolated database. Cover two competing requests for the same seat, a multi-seat conflict with zero partial writes, and the exact booking cutoff.
 
 ### B5 — Booking retrieval and cancellation

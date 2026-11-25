@@ -1,4 +1,8 @@
-import { checkoutConfirmationSchema, checkoutRequestSchema } from '@booking-system/cinema-contracts'
+import {
+  canonicalCheckoutPayload,
+  checkoutConfirmationSchema,
+  checkoutRequestSchema,
+} from '@booking-system/cinema-contracts'
 import { z } from 'zod'
 
 /** The payload the confirmation API accepts, including the reviewed unit price. */
@@ -50,6 +54,11 @@ export function toCheckoutRequest(
     customerEmail: values.email,
     quotedUnitPricePiastres,
   })
+}
+
+/** Same canonical form the API fingerprints, so the web rotates its key on a real change. */
+export function checkoutPayloadFingerprint(request: CheckoutRequest): string {
+  return canonicalCheckoutPayload(request)
 }
 
 /** Prices are integer piastres from the showtime detail; the helper only formats. */

@@ -10,9 +10,16 @@ export function getSeatMap(id: string): Promise<SeatMap> {
   return request<SeatMap>(`/showtimes/${encodeURIComponent(id)}/seat-map`)
 }
 
-export function confirmBooking(payload: CheckoutRequest): Promise<ConfirmedBooking> {
+/** D4: the stable key travels in a header, separate from the confirmed payload. */
+export interface ConfirmBookingInput {
+  checkout: CheckoutRequest
+  idempotencyKey: string
+}
+
+export function confirmBooking({ checkout, idempotencyKey }: ConfirmBookingInput): Promise<ConfirmedBooking> {
   return request<ConfirmedBooking>('/bookings/confirm', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(checkout),
   })
 }

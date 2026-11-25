@@ -282,3 +282,58 @@ test('keeps Arabic RTL and labelled seats while selecting', async ({ page }) => 
   await expect(page.getByText(/الإجمالي/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'تأكيد الاختيار' })).toBeVisible()
 })
+
+test('sends one stable idempotency key per checkout attempt', async ({ page }) => {
+  await useEnglish(page)
+  await page.goto(`/showtimes/${showtimeId}`)
+
+  const keys: string[] = []
+  await page.route('**/api/bookings/confirm', (route) => {
+    keys.push(route.request().headers()['idempotency-key'] ?? '')
+    const payload = route.request().postDataJSON() as {
+      seatIds: string[]
+      customerEmail: string
+      quotedUnitPricePiastres: number
+    }
+    if (keys.length === 1) {
+      route.fulfill({ status: 409, json: { error: 'booking_closed' } })
+      return
+    }
+    route.fulfill({
+      status: 201,
+      json: {
+        id: '33333333-3333-4333-8333-333333333333',
+        reference: `bkg_${'d'.repeat(32)}`,
+        showtimeId,
+        filmTitle: detail.filmTitle,
+        auditoriumName: detail.auditoriumName,
+        seatLabels: payload.seatIds.map((_, index) => `A${index + 1}`),
+        seatIds: payload.seatIds,
+        customerEmail: payload.customerEmail,
+        startsAt: detail.startsAt,
+        unitPricePiastres: detail.pricePiastres,
+        totalPiastres: detail.pricePiastres * payload.seatIds.length,
+      },
+    })
+  })
+
+  await page.getByRole('button', { name: 'Seat A1 — available' }).click()
+  await page.getByLabel('Your email address').fill('guest@example.com')
+  await page.getByRole('button', { name: 'Confirm selection' }).click()
+
+  await expect(page.getByText('Online booking for this showtime has closed.')).toBeVisible()
+  await page.getByRole('button', { name: 'Confirm selection' }).click()
+  await expect(page.getByText(/Booking confirmed/)).toContainText(`bkg_${'d'.repeat(32)}`)
+
+  // An unchanged retry reuses the key; a new selection starts a new attempt.
+  await page.getByRole('button', { name: 'Seat A1 — available' }).click()
+  await page.getByRole('button', { name: 'Confirm selection' }).click()
+  await expect(page.getByText(/Booking confirmed/)).toBeVisible()
+
+  expect(keys[0]).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+  )
+  expect(keys[1]).toBe(keys[0])
+  expect(keys[2]).not.toBe(keys[0])
+  expect(keys).toHaveLength(3)
+})

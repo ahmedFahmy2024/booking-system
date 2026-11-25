@@ -409,4 +409,26 @@ describe('CheckoutForm', () => {
     })
     expect(screen.getByRole('button', { name: 'المقعد A1 — متاح' }).getAttribute('aria-pressed')).toBe('true')
   })
+
+  it('shows a localized message when the key is reused with a different payload', async () => {
+    renderForm()
+    clickSeat(1)
+    fireEvent.change(screen.getByLabelText('بريدك الإلكتروني'), {
+      target: { value: 'guest@example.com' },
+    })
+    mocks.confirm.mockImplementation(
+      (_input: unknown, options?: { onError?: (error: unknown) => void }) =>
+        options?.onError?.(
+          new ApiRequestError('idempotency_key_conflict', 409, 'idempotency_key_conflict', {}),
+        ),
+    )
+
+    submit()
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('تغيّر الاختيار بعد إرسال الطلب. راجع المقاعد وحاول مرة أخرى.'),
+      ).toBeDefined()
+    })
+  })
 })

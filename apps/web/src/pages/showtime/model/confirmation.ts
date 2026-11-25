@@ -35,12 +35,14 @@ export type ConfirmationErrorKey =
   | 'bookingClosedError'
   | 'showtimeNotFound'
   | 'tooManyRequests'
+  | 'idempotencyConflict'
 
 const errorKeys: Record<string, ConfirmationErrorKey> = {
   seat_unavailable: 'seatsTaken',
   booking_closed: 'bookingClosedError',
   showtime_not_found: 'showtimeNotFound',
   too_many_requests: 'tooManyRequests',
+  idempotency_key_conflict: 'idempotencyConflict',
 }
 
 export function confirmationErrorKey(code: string | null): ConfirmationErrorKey {

@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm'
-import { check, index, integer, pgTable, serial, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { check, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import { showtimes } from './cinema-schema.js'
 
 export * from './auth-schema.js'
@@ -18,6 +18,25 @@ export const services = pgTable('services', {
 // default lets ADD COLUMN backfill existing prototype rows with a unique value;
 // new bookings also supply an explicit generated reference.
 const referenceDefault = sql`'bkg_' || replace(gen_random_uuid()::text, '-', '')`
+
+/**
+ * The exact public response a confirmation returned, minus contact details.
+ * The guest email stays on the booking row (alongside the legacy customer
+ * name), so D7 retention clears it in one record while the rest of the outcome
+ * remains available for idempotent replay (D4) and non-contact history.
+ */
+export interface StoredConfirmationResponse {
+  id: string
+  reference: string
+  showtimeId: string
+  filmTitle: string
+  startsAt: string
+  auditoriumName: string
+  seatLabels: string[]
+  seatIds: string[]
+  unitPricePiastres: number
+  totalPiastres: number
+}
 
 export const bookings = pgTable('bookings', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -44,8 +63,15 @@ export const bookings = pgTable('bookings', {
   unitPricePiastres: integer('unit_price_piastres'),
   /** Accepted total snapshotted at confirmation; NULL on prototype rows. */
   totalPiastres: integer('total_piastres'),
+  /** D4: stable key from the guest's confirmation attempt; NULL on older rows. */
+  idempotencyKey: text('idempotency_key'),
+  /** SHA-256 of the canonical request; reusing the key with another payload conflicts. */
+  idempotencyFingerprint: text('idempotency_fingerprint'),
+  /** Original 201 body (without the guest email) replayed after a lost response. */
+  idempotencyResponse: jsonb('idempotency_response').$type<StoredConfirmationResponse>(),
 }, (t) => [
   index('bookings_showtime_id_idx').on(t.showtimeId),
+  uniqueIndex('bookings_idempotency_key_unique').on(t.idempotencyKey),
   check('bookings_unit_price_positive', sql`${t.unitPricePiastres} is null or ${t.unitPricePiastres} > 0`),
   check('bookings_total_positive', sql`${t.totalPiastres} is null or ${t.totalPiastres} > 0`),
 ])

@@ -57,6 +57,13 @@
       "when": 1795509329140,
       "tag": "0007_careful_the_enforcers",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795609164326,
+      "tag": "0008_clear_puff_adder",
+      "breakpoints": true
     }
   ]
 }
