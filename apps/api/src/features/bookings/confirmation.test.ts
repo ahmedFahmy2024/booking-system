@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // suite needs no DATABASE_URL and never reaches Neon.
 const mocks = vi.hoisted(() => {
   const from = vi.fn()
+  const innerJoin = vi.fn()
   const where = vi.fn()
   const limit = vi.fn()
   const values = vi.fn()
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => {
     insert: vi.fn(),
     batch: vi.fn(),
     from,
+    innerJoin,
     where,
     limit,
     values,
@@ -66,6 +68,9 @@ const showtimeRow = {
   status: 'published',
   pricePiastres: 2500,
   layoutSnapshot: snapshot,
+  filmTitle: 'Cairo Nights',
+  // The live name changed after publish; the frozen snapshot name must win.
+  auditoriumName: 'Renamed Hall',
 }
 
 const payload = {
@@ -90,7 +95,11 @@ beforeEach(() => {
   clearCapturedMessages()
   mocks.claimRows = []
   mocks.select.mockReturnValue({ from: mocks.from })
-  mocks.from.mockReturnValue({ where: mocks.where })
+  // The showtime read joins films and auditoriums; the claim read stops at
+  // .where(). Both builders expose .where(), and the joined one stays chainable.
+  const joinable = { innerJoin: mocks.innerJoin, where: mocks.where }
+  mocks.from.mockReturnValue(joinable)
+  mocks.innerJoin.mockReturnValue(joinable)
   // Drizzle query builders are awaitable as well as chainable: the showtime
   // read appends .limit(), the claim read awaits the same thenable.
   mocks.where.mockImplementation(() =>
@@ -119,9 +128,12 @@ describe('POST /bookings/confirm — atomic cinema checkout', () => {
       id: bookingValues.id,
       reference: bookingValues.reference,
       showtimeId: SHOWTIME_ID,
+      filmTitle: 'Cairo Nights',
+      startsAt: STARTS_AT.toISOString(),
+      auditoriumName: 'Hall 1',
+      seatLabels: ['A1', 'A2'],
       seatIds: [SEAT_1, SEAT_2],
       customerEmail: payload.customerEmail,
-      startsAt: STARTS_AT.toISOString(),
       unitPricePiastres: 2500,
       totalPiastres: 5000,
     })
@@ -155,6 +167,28 @@ describe('POST /bookings/confirm — atomic cinema checkout', () => {
     expect(body).not.toHaveProperty('guestLinkVerifier')
     expect(body).not.toHaveProperty('guestLinkEncrypted')
     expect(mocks.getSession).not.toHaveBeenCalled()
+  })
+
+  it('returns frozen seat labels in the requested order for the confirmation screen', async () => {
+    const res = await post({ ...payload, seatIds: [SEAT_2, SEAT_1] })
+
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    expect(body.seatLabels).toEqual(['A2', 'A1'])
+    expect(body.auditoriumName).toBe('Hall 1')
+    expect(body.filmTitle).toBe('Cairo Nights')
+    expect(JSON.stringify(body)).not.toContain('Renamed Hall')
+  })
+
+  it('falls back to the live auditorium name when the frozen snapshot has none', async () => {
+    mocks.limit.mockResolvedValueOnce([
+      { ...showtimeRow, layoutSnapshot: { ...snapshot, auditoriumName: '' } },
+    ])
+
+    const res = await post()
+
+    expect(res.status).toBe(201)
+    expect((await res.json()).auditoriumName).toBe('Renamed Hall')
   })
 
   it('refuses malformed payloads before any database work', async () => {

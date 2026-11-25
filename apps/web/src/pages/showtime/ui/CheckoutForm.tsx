@@ -33,6 +33,7 @@ import {
   type ConfirmationErrorKey,
 } from '../model/confirmation'
 import { useConfirmBooking } from '../model/useConfirmBooking'
+import { BookingConfirmation } from './BookingConfirmation'
 import { SeatMapPending } from './SeatMapPending'
 import { SeatMapSection } from './SeatMapSection'
 
@@ -112,6 +113,9 @@ export function CheckoutForm({ showtimeId, pricePiastres, bookingClosed }: Check
       setErrorKey(null)
       return
     }
+    // A later failure supersedes the pending revision: the guest must review
+    // the normal total again instead of confirming an outdated quote.
+    setPriceRevision(null)
     setErrorKey(confirmationErrorKey(failure.code))
     if (failure.code === 'seat_unavailable' && failure.availableSeatIds !== null) {
       const stillAvailable = new Set(failure.availableSeatIds)
@@ -146,73 +150,69 @@ export function CheckoutForm({ showtimeId, pricePiastres, bookingClosed }: Check
           />
         </AsyncSection>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('checkoutHeading')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FieldGroup>
-              <Field data-invalid={Boolean(errors.email)}>
-                <FieldLabel htmlFor="guestEmail">{t('guestEmail')}</FieldLabel>
-                <Input
-                  id="guestEmail"
-                  type="email"
-                  dir="ltr"
-                  autoComplete="email"
-                  aria-invalid={Boolean(errors.email)}
-                  aria-describedby={errors.email ? 'guestEmail-error' : undefined}
-                  {...register('email', { onChange: clearOutcome })}
-                />
-                {errors.email && <FieldError id="guestEmail-error">{t('invalidEmail')}</FieldError>}
-              </Field>
+        {confirmed ? (
+          <BookingConfirmation booking={confirmed} />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('checkoutHeading')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FieldGroup>
+                <Field data-invalid={Boolean(errors.email)}>
+                  <FieldLabel htmlFor="guestEmail">{t('guestEmail')}</FieldLabel>
+                  <Input
+                    id="guestEmail"
+                    type="email"
+                    dir="ltr"
+                    autoComplete="email"
+                    aria-invalid={Boolean(errors.email)}
+                    aria-describedby={errors.email ? 'guestEmail-error' : undefined}
+                    {...register('email', { onChange: clearOutcome })}
+                  />
+                  {errors.email && <FieldError id="guestEmail-error">{t('invalidEmail')}</FieldError>}
+                </Field>
 
-              {errors.seatIds && <FieldError>{t('noSeatSelected')}</FieldError>}
+                {errors.seatIds && <FieldError>{t('noSeatSelected')}</FieldError>}
 
-              <div className="flex flex-col gap-1 text-sm">
-                <p>{t('unitPrice', { price: formatEgp(displayedPricePiastres, locale) })}</p>
-                <p aria-live="polite" className="font-medium">
-                  {t('totalPrice', {
-                    seatCount: seatIds.length,
-                    total: formatEgp(totalPiastres, locale),
-                  })}
-                </p>
-              </div>
-
-              {priceRevision !== null && (
-                <div className="flex flex-col gap-2 text-sm">
-                  <p role="alert" className="text-destructive font-medium">
-                    {t('priceChanged', {
-                      price: formatEgp(priceRevision, locale),
+                <div className="flex flex-col gap-1 text-sm">
+                  <p>{t('unitPrice', { price: formatEgp(displayedPricePiastres, locale) })}</p>
+                  <p aria-live="polite" className="font-medium">
+                    {t('totalPrice', {
                       seatCount: seatIds.length,
-                      total: formatEgp(checkoutTotalPiastres(priceRevision, seatIds.length), locale),
+                      total: formatEgp(totalPiastres, locale),
                     })}
                   </p>
-                  <Button type="button" onClick={confirmRevisedTotal} disabled={isPending}>
-                    {t('confirmRevisedTotal')}
-                  </Button>
                 </div>
-              )}
-              {errorKey && (
-                <p role="alert" className="text-destructive text-sm font-medium">
-                  {t(errorKey)}
-                </p>
-              )}
-              {confirmed && (
-                <p role="status" className="text-sm font-medium">
-                  {t('bookingConfirmed', {
-                    reference: confirmed.reference,
-                    total: formatEgp(confirmed.totalPiastres, locale),
-                  })}
-                </p>
-              )}
-            </FieldGroup>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={bookingClosed || isPending || priceRevision !== null}>
-              {isPending ? t('confirming') : t('confirmSelection')}
-            </Button>
-          </CardFooter>
-        </Card>
+
+                {priceRevision !== null && (
+                  <div className="flex flex-col gap-2 text-sm">
+                    <p role="alert" className="text-destructive font-medium">
+                      {t('priceChanged', {
+                        price: formatEgp(priceRevision, locale),
+                        seatCount: seatIds.length,
+                        total: formatEgp(checkoutTotalPiastres(priceRevision, seatIds.length), locale),
+                      })}
+                    </p>
+                    <Button type="button" onClick={confirmRevisedTotal} disabled={isPending}>
+                      {t('confirmRevisedTotal')}
+                    </Button>
+                  </div>
+                )}
+                {errorKey && (
+                  <p role="alert" className="text-destructive text-sm font-medium">
+                    {t(errorKey)}
+                  </p>
+                )}
+              </FieldGroup>
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" disabled={bookingClosed || isPending || priceRevision !== null}>
+                {isPending ? t('confirming') : t('confirmSelection')}
+              </Button>
+            </CardFooter>
+          </Card>
+        )}
       </form>
     </FormProvider>
   )

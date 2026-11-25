@@ -4,14 +4,21 @@ import { z } from 'zod'
 /** The payload the confirmation API accepts, including the reviewed unit price. */
 export type CheckoutRequest = z.output<typeof checkoutConfirmationSchema>
 
-/** Public fields returned by the confirmation write; never a guest credential. */
+/**
+ * Public fields returned by the confirmation write; never a guest credential.
+ * Display fields come from the server's frozen showtime data so the confirmation
+ * stays accurate even if the film or auditorium is edited after booking.
+ */
 export interface ConfirmedBooking {
   id: string
   reference: string
   showtimeId: string
+  filmTitle: string
+  startsAt: string
+  auditoriumName: string
+  seatLabels: string[]
   seatIds: string[]
   customerEmail: string
-  startsAt: string
   unitPricePiastres: number
   totalPiastres: number
 }

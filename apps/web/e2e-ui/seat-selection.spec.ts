@@ -50,6 +50,9 @@ async function stubApi(page: Page) {
         id: '33333333-3333-4333-8333-333333333333',
         reference: `bkg_${'a'.repeat(32)}`,
         showtimeId,
+        filmTitle: detail.filmTitle,
+        auditoriumName: detail.auditoriumName,
+        seatLabels: payload.seatIds.map((_, index) => `A${index + 1}`),
         seatIds: payload.seatIds,
         customerEmail: payload.customerEmail,
         startsAt: detail.startsAt,
@@ -85,9 +88,30 @@ test('selects seats by keyboard and confirms them through the API', async ({ pag
   await page.getByLabel('Your email address').fill('guest@example.com')
   await page.getByRole('button', { name: 'Confirm selection' }).click()
 
-  await expect(page.getByRole('status').filter({ hasText: 'Booking confirmed' })).toContainText(
-    `bkg_${'a'.repeat(32)}`,
-  )
+  const confirmation = page.locator('[aria-labelledby="booking-confirmation-heading"]')
+  await expect(confirmation.getByRole('heading', { name: 'Your booking is confirmed' })).toBeVisible()
+  await expect(confirmation.getByRole('status')).toContainText(`bkg_${'a'.repeat(32)}`)
+  await expect(confirmation.getByText('Cairo Nights')).toBeVisible()
+  await expect(confirmation.getByText('Auditorium Hall 1')).toBeVisible()
+  await expect(confirmation.getByText('A1, A2', { exact: true })).toBeVisible()
+  await expect(confirmation.getByText('Pay at the cinema when you arrive.')).toBeVisible()
+  await expect(confirmation.getByText(/We emailed a private link/)).toContainText('guest@example.com')
+  await expect(page.getByRole('button', { name: 'Confirm selection' })).toHaveCount(0)
+})
+
+test('shows the confirmation details in Arabic RTL after booking', async ({ page }) => {
+  await page.goto(`/showtimes/${showtimeId}`)
+
+  await page.getByRole('button', { name: 'المقعد A1 — متاح' }).click()
+  await page.getByLabel('بريدك الإلكتروني').fill('guest@example.com')
+  await page.getByRole('button', { name: 'تأكيد الاختيار' }).click()
+
+  const confirmation = page.locator('[aria-labelledby="booking-confirmation-heading"]')
+  await expect(confirmation.getByRole('heading', { name: 'تم تأكيد حجزك' })).toBeVisible()
+  await expect(confirmation.getByText('Cairo Nights')).toBeVisible()
+  await expect(confirmation.getByText('قاعة Hall 1')).toBeVisible()
+  await expect(confirmation.getByText('ادفع المبلغ في المقر عند حضورك العرض.')).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
 })
 
 test('refuses a seventh seat and keeps the six-seat total', async ({ page }) => {
@@ -155,6 +179,9 @@ test('prunes a taken seat after a conflict and confirms the remaining one', asyn
         id: '33333333-3333-4333-8333-333333333333',
         reference: `bkg_${'b'.repeat(32)}`,
         showtimeId,
+        filmTitle: detail.filmTitle,
+        auditoriumName: detail.auditoriumName,
+        seatLabels: payload.seatIds.map((_, index) => `A${index + 1}`),
         seatIds: payload.seatIds,
         customerEmail: payload.customerEmail,
         startsAt: detail.startsAt,
@@ -217,6 +244,9 @@ test('requires explicit confirmation when the price changed before checkout', as
         id: '33333333-3333-4333-8333-333333333333',
         reference: `bkg_${'c'.repeat(32)}`,
         showtimeId,
+        filmTitle: detail.filmTitle,
+        auditoriumName: detail.auditoriumName,
+        seatLabels: payload.seatIds.map((_, index) => `A${index + 1}`),
         seatIds: payload.seatIds,
         customerEmail: payload.customerEmail,
         startsAt: detail.startsAt,

@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import type { AuthEnv } from '../../auth/middleware.js'
-import { showtimes, type AuditoriumLayoutSnapshot } from '../../db/cinema-schema.js'
+import { auditoriums, films, showtimes, type AuditoriumLayoutSnapshot } from '../../db/cinema-schema.js'
 import { getDb } from '../../db/index.js'
 import { bookingSeats, bookings } from '../../db/schema.js'
 import { rateLimit } from '../../rate-limit.js'
@@ -33,12 +33,17 @@ function isUniqueViolation(error: unknown): boolean {
 
 /**
  * A seat is selectable only when it is in the layout frozen at publish time and
- * the auditorium did not mark it out of service. Live seat rows are deliberately
- * not consulted: D3 freezes labels for a showtime that already has bookings.
+ * the auditorium did not mark it out of service. The label is frozen too (D3):
+ * live seat rows are deliberately not consulted, so an auditorium edit cannot
+ * rewrite what an existing booking shows on its confirmation screen.
  */
-function selectableSeatIds(snapshot: AuditoriumLayoutSnapshot | null): Set<string> {
-  if (!snapshot) return new Set()
-  return new Set(snapshot.seats.filter((seat) => !seat.outOfService).map((seat) => seat.id))
+function selectableSeatLabels(snapshot: AuditoriumLayoutSnapshot | null): Map<string, string> {
+  const labels = new Map<string, string>()
+  if (!snapshot) return labels
+  for (const seat of snapshot.seats) {
+    if (!seat.outOfService) labels.set(seat.id, `${seat.rowLabel}${seat.seatNumber}`)
+  }
+  return labels
 }
 
 confirmationRoutes.post(
@@ -57,8 +62,12 @@ confirmationRoutes.post(
         status: showtimes.status,
         pricePiastres: showtimes.pricePiastres,
         layoutSnapshot: showtimes.layoutSnapshot,
+        filmTitle: films.title,
+        auditoriumName: auditoriums.name,
       })
       .from(showtimes)
+      .innerJoin(films, eq(films.id, showtimes.filmId))
+      .innerJoin(auditoriums, eq(auditoriums.id, showtimes.auditoriumId))
       .where(eq(showtimes.id, input.showtimeId))
       .limit(1)
 
@@ -72,10 +81,16 @@ confirmationRoutes.post(
     if (!snapshot || snapshot.auditoriumId !== showtime.auditoriumId) {
       return c.json({ error: 'seat_map_unavailable' }, 409)
     }
-    const selectable = selectableSeatIds(snapshot)
-    if (input.seatIds.some((id) => !selectable.has(id))) {
-      return c.json({ error: 'invalid_seat' }, 400)
+    const labels = selectableSeatLabels(snapshot)
+    const seatLabels: string[] = []
+    for (const id of input.seatIds) {
+      const label = labels.get(id)
+      if (!label) return c.json({ error: 'invalid_seat' }, 400)
+      seatLabels.push(label)
     }
+    // D3 freezes the auditorium identity at publish; the live name is only a
+    // fallback for older rows without a snapshot name.
+    const auditoriumName = snapshot.auditoriumName || showtime.auditoriumName
 
     // The accepted price is the showtime's published price, never a client value.
     if (showtime.pricePiastres <= 0) return c.json({ error: 'price_unavailable' }, 409)
@@ -162,9 +177,12 @@ confirmationRoutes.post(
         id,
         reference,
         showtimeId: showtime.id,
+        filmTitle: showtime.filmTitle,
+        startsAt: showtime.startsAt.toISOString(),
+        auditoriumName,
+        seatLabels,
         seatIds: input.seatIds,
         customerEmail: input.customerEmail,
-        startsAt: showtime.startsAt.toISOString(),
         unitPricePiastres,
         totalPiastres,
       },
