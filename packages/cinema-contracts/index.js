@@ -95,8 +95,10 @@ export const checkoutConflictSchema = z.object({
  * D4: a stable key travels in a header, separate from the request body so the
  * payload fingerprint can describe only what the guest actually confirmed.
  */
+export const idempotencyKeySchema = z.uuid()
+
 export const idempotencyKeyHeaderSchema = z.object({
-  'idempotency-key': z.uuid(),
+  'idempotency-key': idempotencyKeySchema,
 })
 
 /**

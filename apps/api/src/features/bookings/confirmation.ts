@@ -88,21 +88,39 @@ type ReplayResult =
   | { kind: 'replay'; response: StoredConfirmationResponse & { customerEmail: string } }
 
 function readReplay(row: ReplayRow | undefined, fingerprint: string): ReplayResult {
-  if (!row) return { kind: 'missing' }
-  if (!row.idempotencyResponse || row.idempotencyFingerprint !== fingerprint) {
-    return { kind: 'conflict' }
+  if (!row || !row.idempotencyResponse || !row.idempotencyFingerprint) return { kind: 'missing' }
+  if (row.idempotencyFingerprint !== fingerprint) return { kind: 'conflict' }
+  return { kind: 'replay', response: publicResponse(row.idempotencyResponse, row.customerEmail) }
+}
+
+/**
+ * Both the first 201 and its replay build the body in this exact order, so a
+ * lost response and its replay are byte-identical even though jsonb normalizes
+ * stored object keys. Contact details stay on the booking row only, so D7
+ * retention clears them without touching the replay snapshot.
+ */
+function publicResponse(stored: StoredConfirmationResponse, customerEmail: string) {
+  return {
+    id: stored.id,
+    reference: stored.reference,
+    showtimeId: stored.showtimeId,
+    filmTitle: stored.filmTitle,
+    startsAt: stored.startsAt,
+    auditoriumName: stored.auditoriumName,
+    seatLabels: stored.seatLabels,
+    seatIds: stored.seatIds,
+    unitPricePiastres: stored.unitPricePiastres,
+    totalPiastres: stored.totalPiastres,
+    customerEmail,
   }
-  // Contact details stay on the booking row only, so D7 retention clears them
-  // without touching the replay snapshot.
-  return { kind: 'replay', response: { ...row.idempotencyResponse, customerEmail: row.customerEmail } }
 }
 
 confirmationRoutes.post(
   '/',
-  rateLimit('checkout', 30),
   zValidator('header', idempotencyKeyHeaderSchema, (result, c) => {
     if (!result.success) return c.json({ error: 'invalid_idempotency_key' }, 400)
   }),
+  rateLimit('checkout', 30),
   zValidator('json', checkoutConfirmationSchema),
   async (c) => {
     const input = c.req.valid('json')
@@ -240,6 +258,14 @@ confirmationRoutes.post(
         throw error
       }
       if (constraint !== null) {
+        // A same-key attempt with a different payload may have committed while
+        // this batch lost on a seat constraint. Report the key conflict first
+        // so both racing outcomes agree on why the request was refused.
+        const keyWinner = readReplay(await findByConfirmationKey(db, idempotencyKey), fingerprint)
+        if (keyWinner.kind === 'conflict') {
+          return c.json({ error: 'idempotency_key_conflict' }, 409)
+        }
+        if (keyWinner.kind === 'replay') return c.json(keyWinner.response, 201)
         // A competing claim won between the availability read and the write.
         // Re-read the claims so the conflict names the seats still available.
         const currentClaims = await db
@@ -260,6 +286,6 @@ confirmationRoutes.post(
     }
 
     await sendGuestLink(input.customerEmail, reference, credential)
-    return c.json({ ...response, customerEmail: input.customerEmail }, 201)
+    return c.json(publicResponse(response, input.customerEmail), 201)
   },
 )

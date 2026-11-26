@@ -31,6 +31,7 @@ async function attempt(mutateAsync: (input: ReturnType<typeof checkout>) => Prom
 
 beforeEach(() => {
   vi.resetAllMocks()
+  sessionStorage.clear()
 })
 
 describe('useConfirmBooking idempotency key', () => {
@@ -61,5 +62,36 @@ describe('useConfirmBooking idempotency key', () => {
 
     await attempt(result.current.mutateAsync)
     expect(mocks.confirm.mock.calls[1][0].idempotencyKey).not.toBe(firstKey)
+  })
+
+  it('keeps the key across a page reload after a lost response', async () => {
+    mocks.confirm.mockRejectedValue(new Error('lost response'))
+    const first = renderHook(() => useConfirmBooking(showtimeId), { wrapper: makeWrapper() })
+    await attempt(first.result.current.mutateAsync)
+    const key = mocks.confirm.mock.calls[0][0].idempotencyKey as string
+    first.unmount()
+
+    const reloaded = renderHook(() => useConfirmBooking(showtimeId), { wrapper: makeWrapper() })
+    await attempt(reloaded.result.current.mutateAsync)
+
+    expect(mocks.confirm.mock.calls[1][0].idempotencyKey).toBe(key)
+  })
+
+  it('clears the stored key after a confirmed booking', async () => {
+    mocks.confirm.mockRejectedValue(new Error('lost response'))
+    const first = renderHook(() => useConfirmBooking(showtimeId), { wrapper: makeWrapper() })
+    await attempt(first.result.current.mutateAsync)
+    expect(sessionStorage.getItem(`booking-checkout:${showtimeId}`)).not.toBeNull()
+    first.unmount()
+
+    mocks.confirm.mockResolvedValue({})
+    const reloaded = renderHook(() => useConfirmBooking(showtimeId), { wrapper: makeWrapper() })
+    await attempt(reloaded.result.current.mutateAsync)
+    expect(sessionStorage.getItem(`booking-checkout:${showtimeId}`)).toBeNull()
+
+    await attempt(reloaded.result.current.mutateAsync)
+    expect(mocks.confirm.mock.calls[2][0].idempotencyKey).not.toBe(
+      mocks.confirm.mock.calls[0][0].idempotencyKey,
+    )
   })
 })

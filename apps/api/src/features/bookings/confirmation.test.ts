@@ -228,17 +228,21 @@ describe('POST /bookings/confirm — atomic cinema checkout', () => {
     expect(mocks.getSession).not.toHaveBeenCalled()
   })
 
-  it('replays the original outcome for the same key and payload without a second write or email', async () => {
+  it('replays the original outcome byte-for-byte for the same key and payload without a second write or email', async () => {
     const first = await post()
-    const firstBody = await first.json()
+    const firstText = await first.text()
+    const firstBody = JSON.parse(firstText) as Record<string, unknown>
     const [bookingValues] = mocks.values.mock.calls[0]
     mocks.limitQueue = [
       [
         {
           customerEmail: payload.customerEmail,
           idempotencyFingerprint: bookingValues.idempotencyFingerprint,
+          // jsonb may return stored keys in any order; replay must normalize.
           idempotencyResponse: Object.fromEntries(
-            Object.entries(firstBody).filter(([name]) => name !== 'customerEmail'),
+            Object.entries(firstBody)
+              .filter(([name]) => name !== 'customerEmail')
+              .reverse(),
           ),
         },
       ],
@@ -247,7 +251,7 @@ describe('POST /bookings/confirm — atomic cinema checkout', () => {
     const replay = await post()
 
     expect(replay.status).toBe(201)
-    expect(await replay.json()).toEqual(firstBody)
+    expect(await replay.text()).toBe(firstText)
     expect(mocks.batch).toHaveBeenCalledOnce()
     expect(mocks.values).toHaveBeenCalledTimes(2)
     expect(getCapturedMessages()).toHaveLength(1)
@@ -300,6 +304,21 @@ describe('POST /bookings/confirm — atomic cinema checkout', () => {
     expect(res.status).toBe(201)
     expect(await res.json()).toEqual({ ...storedResponse, customerEmail: payload.customerEmail })
     expect(mocks.batch).toHaveBeenCalledOnce()
+    expect(getCapturedMessages()).toHaveLength(0)
+  })
+
+  it('reports a key conflict when a racing batch loses a seat with the same key but another payload', async () => {
+    const duplicate = new Error('duplicate key')
+    ;(duplicate as Error & { code: string; constraint: string }).code = '23505'
+    ;(duplicate as Error & { constraint: string }).constraint = 'booking_seats_showtime_seat_unique'
+    mocks.batch.mockRejectedValueOnce(new Error('wrapped', { cause: duplicate }))
+    const different = { ...payload, seatIds: [SEAT_1] }
+    mocks.limitQueue = [[], [showtimeRow], [replayRow(different)]]
+
+    const res = await post()
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual({ error: 'idempotency_key_conflict' })
     expect(getCapturedMessages()).toHaveLength(0)
   })
 

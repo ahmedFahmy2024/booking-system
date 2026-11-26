@@ -337,3 +337,52 @@ test('sends one stable idempotency key per checkout attempt', async ({ page }) =
   expect(keys[2]).not.toBe(keys[0])
   expect(keys).toHaveLength(3)
 })
+
+test('reuses the key after a reload when the first response was lost', async ({ page }) => {
+  await useEnglish(page)
+  await page.goto(`/showtimes/${showtimeId}`)
+
+  const keys: string[] = []
+  await page.route('**/api/bookings/confirm', (route) => {
+    keys.push(route.request().headers()['idempotency-key'] ?? '')
+    if (keys.length === 1) {
+      route.abort('failed')
+      return
+    }
+    const payload = route.request().postDataJSON() as {
+      seatIds: string[]
+      customerEmail: string
+      quotedUnitPricePiastres: number
+    }
+    route.fulfill({
+      status: 201,
+      json: {
+        id: '33333333-3333-4333-8333-333333333333',
+        reference: `bkg_${'e'.repeat(32)}`,
+        showtimeId,
+        filmTitle: detail.filmTitle,
+        auditoriumName: detail.auditoriumName,
+        seatLabels: payload.seatIds.map((_, index) => `A${index + 1}`),
+        seatIds: payload.seatIds,
+        customerEmail: payload.customerEmail,
+        startsAt: detail.startsAt,
+        unitPricePiastres: detail.pricePiastres,
+        totalPiastres: detail.pricePiastres * payload.seatIds.length,
+      },
+    })
+  })
+
+  await page.getByRole('button', { name: 'Seat A1 — available' }).click()
+  await page.getByLabel('Your email address').fill('guest@example.com')
+  await page.getByRole('button', { name: 'Confirm selection' }).click()
+  await expect(page.getByText('Could not confirm the booking. Check the seats and try again.')).toBeVisible()
+
+  await page.reload()
+  await page.getByRole('button', { name: 'Seat A1 — available' }).click()
+  await page.getByLabel('Your email address').fill('guest@example.com')
+  await page.getByRole('button', { name: 'Confirm selection' }).click()
+  await expect(page.getByText(/Booking confirmed/)).toContainText(`bkg_${'e'.repeat(32)}`)
+
+  expect(keys).toHaveLength(2)
+  expect(keys[1]).toBe(keys[0])
+})

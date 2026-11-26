@@ -4,8 +4,11 @@ import { confirmBooking } from '../api/showtime'
 import { showtimeKeys } from '../api/showtime.queries'
 import { checkoutPayloadFingerprint, type CheckoutRequest } from './checkout'
 import {
+  clearConfirmationAttempt,
   clearConfirmationKey,
+  loadConfirmationAttempt,
   nextConfirmationKey,
+  saveConfirmationAttempt,
   type ConfirmationAttempt,
 } from './confirmation-key'
 
@@ -24,14 +27,19 @@ export function useConfirmBooking(showtimeId: string) {
   }
 
   return useMutation({
-    mutationFn: (checkout: CheckoutRequest) =>
-      confirmBooking({
-        checkout,
-        idempotencyKey: nextConfirmationKey(attemptRef, checkoutPayloadFingerprint(checkout)),
-      }),
+    mutationFn: (checkout: CheckoutRequest) => {
+      if (!attemptRef.current) attemptRef.current = loadConfirmationAttempt(showtimeId)
+      const idempotencyKey = nextConfirmationKey(
+        attemptRef,
+        checkoutPayloadFingerprint(checkout),
+      )
+      saveConfirmationAttempt(showtimeId, attemptRef.current!)
+      return confirmBooking({ checkout, idempotencyKey })
+    },
     onSuccess: () => {
       // The booked outcome is final; a later submission is a new attempt.
       clearConfirmationKey(attemptRef)
+      clearConfirmationAttempt(showtimeId)
       invalidateReads()
     },
     onError: invalidateReads,
