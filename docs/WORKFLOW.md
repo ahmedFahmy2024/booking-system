@@ -5,6 +5,7 @@
 1. Write each acceptance criterion as **starting state → user action or HTTP request → expected result → evidence**. Include the relevant failure or retry case and list the boundaries the change must preserve. Put the criteria in the task or the working PR draft before editing.
 2. For a bug, record the failing observation and reproduce it where practical. For performance work, record the exact measurement command, fixture, baseline, and numeric target. Repeat the measurement under the same conditions after the change.
 3. Identify the affected paths in the [verification map](../.agents/skills/verify-booking-system/features/README.md). For example, if the first booking POST returns 503, the form keeps its values and the list stays unchanged. A successful retry appears after reload and a fresh API read returns exactly one matching row. The Playwright trace proves the sequence.
+4. For a decision that is expensive to reverse, such as changing staff authentication or where seat claims are stored, use independent research to compare options against the approved booking rules. Summarize the evidence, trade-offs, and recommendation in the task. If the recommendation changes an [approved decision](build-plan.md#approved-implementation-decisions), bring it to the maintainer before implementation.
 
 ## Implement and verify
 
@@ -27,10 +28,14 @@
 
    Use `npm --prefix apps/web run doctor` for a full baseline. Review confirmed findings and report unresolved ones with their rule and file. The Web CI job uses the PR's base commit to report introduced findings in the job log. Findings are advisory and use the same pinned CLI as local verification.
 
+### Parallel implementation
+
+When delegation is authorized, parallelize tasks that have clear ownership and can be verified independently. Agree on shared interfaces and dependencies first. For example, settle the booking response contract before assigning the web and API implementations separately. Give each writing agent a separate Git worktree, a base revision, owned paths, acceptance criteria, and verification commands. Assign one owner to integrate the changes and verify the combined behavior through the normal entry point.
+
 ## Review and handoff
 
 - Review the diff against the criteria. For booking writes, schema, or the web/API contract, run [the risk-based review](../.agents/skills/review-booking-change/SKILL.md).
-- Use the [PR template](../.github/pull_request_template.md) to capture the visible result, exact commands and outcomes, evidence paths, and any unverified path. Include recovery for stored-data or deployment changes.
+- Use the [PR template](../.github/pull_request_template.md) to capture the visible result, exact commands and outcomes, and any unverified path. Link each material verification result to the CI run or artifact for the checked revision, or give the local test output or trace path and identify the checkout and tested changes. Record the reason for any pending, blocked, or skipped check. Include recovery for stored-data or deployment changes.
 - When asked to prepare or monitor a PR, use [the delivery skill](../.agents/skills/deliver-booking-pr/SKILL.md). The maintainer owns the merge.
 
 ## Between sessions

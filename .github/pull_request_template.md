@@ -8,7 +8,7 @@
 
 ## Verification
 
-<!-- Record commands and outcomes, browser evidence where relevant, and any path you could not verify. -->
+<!-- Record the checked revision, exact commands and outcomes, and links or paths to the CI runs, test output, or browser traces. For uncommitted checks, identify the checkout and tested changes. List pending, blocked, or skipped checks with the reason. -->
 
 ## Review and recovery
 
