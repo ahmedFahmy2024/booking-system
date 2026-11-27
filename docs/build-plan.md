@@ -175,7 +175,7 @@ Applies [D2](#d2--guest-link-and-checkout-access) and [D5](#d5--cancellation-att
 
 Applies [D5](#d5--cancellation-attendance-and-venue-payments) and [D7](#d7--web-behavior-and-records).
 
-- [ ] **B6.1** Build the paginated staff booking list and detail view, with search by reference, filters by film, showtime and status, and an occupancy view. Default to upcoming showtimes.
+- [x] **B6.1** Build the paginated staff booking list and detail view, with search by reference, filters by film, showtime and status, and an occupancy view. Default to upcoming showtimes. Verified 2026-11-27; evidence in `docs/progress-tracker.md#b61--staff-booking-list-detail-and-occupancy-2026-11-27`.
 - [ ] **B6.2** Record arrivals and at-venue payments independently with timestamps and staff attribution. From showtime start, let staff mark unattended confirmed bookings as no-shows.
 - [ ] **B6.3** Record significant staff actions, including actor, time, and outcome. Verify staff workflows and role restrictions through the staff UI and API.
 

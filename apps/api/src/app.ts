@@ -8,6 +8,10 @@ import { guestRoutes } from './features/guest/index.js'
 import { servicesRoutes } from './features/services/index.js'
 import { showtimeAdminRoutes } from './features/showtimes/index.js'
 import { staffRoutes } from './features/staff/index.js'
+import {
+  staffBookingsRoutes,
+  staffOccupancyRoutes,
+} from './features/staff-bookings/index.js'
 
 export const app = new Hono<AuthEnv>()
 
@@ -17,6 +21,8 @@ app.get('/', (c) => c.text('Hello Hono!'))
 app.all('/api/auth/*', (c) => auth.handler(c.req.raw))
 
 app.route('/staff', staffRoutes)
+app.route('/staff/bookings', staffBookingsRoutes)
+app.route('/staff/showtimes', staffOccupancyRoutes)
 app.route('/admin', cinemaAdminRoutes)
 app.route('/admin/showtimes', showtimeAdminRoutes)
 app.route('/bookings', bookingsRoutes)

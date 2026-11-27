@@ -304,6 +304,16 @@ async function ensureSecondAdmin() {
   return staffSignInAs(secondAdminEmail, secondAdminPassword)
 }
 
+async function staffRead(path: string, cookie?: string) {
+  return app.request(path, {
+    headers: {
+      Origin: 'http://localhost:3000',
+      'x-forwarded-for': '203.0.113.45',
+      ...(cookie ? { Cookie: cookie } : {}),
+    },
+  })
+}
+
 async function adminCancelShowtime(id: string, reason: string, cookie?: string) {
   return app.request(`/admin/showtimes/${encodeURIComponent(id)}/cancel`, {
     method: 'POST',
@@ -666,9 +676,82 @@ try {
     referenceOnlyStatus: referenceOnlyCancel.status,
   }
 
+  // B6.1: the new staff reads return a fixed, secret-free projection and an
+  // occupancy count consistent with the claims just written by confirmation.
+  const { cookie, actorId } = await staffSignInAs(staffEmail, staffPassword)
+  const readReference = String(unquoted.body.reference)
+  const anonymousList = await staffRead(`/staff/bookings?period=all&reference=${encodeURIComponent(readReference)}`)
+  assert.equal(anonymousList.status, 401)
+  assert.deepEqual(await anonymousList.json(), { error: 'authentication_required' })
+  const readList = await staffRead(
+    `/staff/bookings?period=all&reference=${encodeURIComponent(readReference)}&status=confirmed&page=1&pageSize=10`,
+    cookie,
+  )
+  assert.equal(readList.status, 200)
+  const listPage = (await readList.json()) as {
+    items: Array<{ reference: string; filmTitle: string; seatCount: number; customerEmail: string }>
+    total: number
+    page: number
+    pageSize: number
+    pageCount: number
+  }
+  assert.equal(listPage.total, 1)
+  assert.equal(listPage.items[0].reference, readReference)
+  assert.equal(listPage.items[0].filmTitle, 'فيلم التحقق الحي')
+  assert.equal(listPage.items[0].seatCount, 1)
+  assert.equal(listPage.items[0].customerEmail, 'b46-price@example.com')
+  assert.equal(listPage.page, 1)
+  assert.equal(listPage.pageSize, 10)
+  assert.equal(listPage.pageCount, 1)
+  assert.ok(!JSON.stringify(listPage).includes('guestLink'), 'the staff list leaked a link field')
+
+  const readDetail = await staffRead(`/staff/bookings/${String(unquoted.body.id)}`, cookie)
+  assert.equal(readDetail.status, 200)
+  const staffDetail = (await readDetail.json()) as {
+    reference: string
+    filmTitle: string
+    seatLabels: string[]
+    totalPiastres: number
+    guestLinkSent: boolean
+  }
+  assert.equal(staffDetail.reference, readReference)
+  assert.equal(staffDetail.filmTitle, 'فيلم التحقق الحي')
+  assert.ok(Array.isArray(staffDetail.seatLabels))
+  assert.equal(staffDetail.totalPiastres, 3000)
+  assert.equal(staffDetail.guestLinkSent, true)
+  assert.ok(!JSON.stringify(staffDetail).includes('verifier'))
+  assert.ok(!JSON.stringify(staffDetail).includes('guestLinkEncrypted'))
+
+  const readOccupancy = await staffRead(`/staff/showtimes/${showtime.price}/occupancy`, cookie)
+  assert.equal(readOccupancy.status, 200)
+  const occupancyView = (await readOccupancy.json()) as {
+    showtimeId: string
+    totalSeats: number
+    outOfServiceSeats: number
+    bookedSeats: number
+    availableSeats: number
+    occupancyPercent: number
+  }
+  assert.equal(occupancyView.showtimeId, showtime.price)
+  assert.equal(occupancyView.totalSeats, 2)
+  assert.equal(occupancyView.outOfServiceSeats, 0)
+  assert.equal(occupancyView.bookedSeats, 1)
+  assert.equal(occupancyView.availableSeats, 1)
+  assert.equal(occupancyView.occupancyPercent, 50)
+  const missingDetail = await staffRead(`/staff/bookings/${randomUUID()}`, cookie)
+  assert.equal(missingDetail.status, 404)
+  assert.deepEqual(await missingDetail.json(), { error: 'booking_not_found' })
+  results.staffBookingReads = {
+    anonymousListStatus: anonymousList.status,
+    listTotal: listPage.total,
+    detailStatus: readDetail.status,
+    detailReferenceMatches: staffDetail.reference === readReference,
+    occupancy: occupancyView,
+    missingDetailStatus: missingDetail.status,
+  }
+
   // B5.3: staff cancel on the guest's request before the showtime starts,
   // with a required reason and the acting staff id stored on the booking.
-  const { cookie, actorId } = await staffSignInAs(staffEmail, staffPassword)
   const staffGuestEmail = 'b53-staff@example.com'
   const staffBooking = await confirm(
     {

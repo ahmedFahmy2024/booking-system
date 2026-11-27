@@ -7,3 +7,4 @@ Use the [verification skill](../SKILL.md) for launch, doctor, evidence, and clea
 - [Guest cancellation](guest-cancellation.md) — explicit write, atomic seat release, two-hour cutoff, idempotent repeat, and cache invalidation.
 - [Staff cancellation](staff-cancellation.md) — authenticated write with reason and actor, showtime-start cutoff, compare-and-swap under races, and the live staff path.
 - [Admin showtime cancellation](admin-showtime-cancellation.md) — admin-only write with reason and actor, atomic booking cascade, booking trigger against the confirmation race, and the live path.
+- [Staff booking list, detail and occupancy](staff-bookings.md) — staff-only reads with reference/film/showtime/status filters, pagination in search params, frozen detail, occupancy counts, and the live/browser paths.
