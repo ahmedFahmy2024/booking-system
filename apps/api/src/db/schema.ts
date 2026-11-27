@@ -19,6 +19,10 @@ export const services = pgTable('services', {
 // new bookings also supply an explicit generated reference.
 const referenceDefault = sql`'bkg_' || replace(gen_random_uuid()::text, '-', '')`
 
+/** B5: cancellation is a status change, never a booking deletion (D5 history). */
+export const BOOKING_STATUSES = ['confirmed', 'cancelled'] as const
+export type BookingStatus = (typeof BOOKING_STATUSES)[number]
+
 /**
  * The exact public response a confirmation returned, minus contact details.
  * The guest email stays on the booking row (alongside the legacy customer
@@ -63,6 +67,14 @@ export const bookings = pgTable('bookings', {
   unitPricePiastres: integer('unit_price_piastres'),
   /** Accepted total snapshotted at confirmation; NULL on prototype rows. */
   totalPiastres: integer('total_piastres'),
+  /**
+   * D5: cancellation changes status, not arrival or venue payment. The default
+   * backfills prototype rows as confirmed without rewriting existing data.
+   * No CHECK constraint so B6 can add `no_show` without another migration.
+   */
+  status: text('status').$type<BookingStatus>().notNull().default('confirmed'),
+  /** Set when a guest or staff cancellation is accepted; no actor for guests. */
+  cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
   /** D4: stable key from the guest's confirmation attempt; NULL on older rows. */
   idempotencyKey: text('idempotency_key'),
   /** SHA-256 of the canonical request; reusing the key with another payload conflicts. */

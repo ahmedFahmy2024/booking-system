@@ -1,10 +1,11 @@
 import { queryOptions } from '@tanstack/react-query'
+import { SHOWTIME_QUERY_ROOT } from '@/shared/api'
 import { getSeatMap, getShowtime } from './showtime'
 
 export const showtimeKeys = {
-  all: ['showtime'] as const,
-  detail: (id: string) => ['showtime', id, 'detail'] as const,
-  seatMap: (id: string) => ['showtime', id, 'seat-map'] as const,
+  all: [SHOWTIME_QUERY_ROOT] as const,
+  detail: (id: string) => [SHOWTIME_QUERY_ROOT, id, 'detail'] as const,
+  seatMap: (id: string) => [SHOWTIME_QUERY_ROOT, id, 'seat-map'] as const,
 }
 
 export const showtimeQuery = (id: string) =>

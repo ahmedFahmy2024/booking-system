@@ -191,13 +191,27 @@ confirmationRoutes.post(
     const claimedSeatIds = new Set(claimRows.map((row) => row.seatId))
     const availableSeatIds = input.seatIds.filter((id) => !claimedSeatIds.has(id))
 
+    // The replay read at the top can precede a competing request's commit. If
+    // that request used this same key and payload, its booking now exists and
+    // its claims are visible here; a conflict would be the wrong outcome for an
+    // identical retry. Re-read before reporting either customer-facing conflict.
+    async function replayIfWon(): Promise<ReplayResult> {
+      return readReplay(await findByConfirmationKey(db, idempotencyKey), fingerprint)
+    }
+
     if (availableSeatIds.length < input.seatIds.length) {
+      const late = await replayIfWon()
+      if (late.kind === 'conflict') return c.json({ error: 'idempotency_key_conflict' }, 409)
+      if (late.kind === 'replay') return c.json(late.response, 201)
       return c.json({ error: 'seat_unavailable', unitPricePiastres, availableSeatIds }, 409)
     }
     if (
       input.quotedUnitPricePiastres !== undefined &&
       input.quotedUnitPricePiastres !== unitPricePiastres
     ) {
+      const late = await replayIfWon()
+      if (late.kind === 'conflict') return c.json({ error: 'idempotency_key_conflict' }, 409)
+      if (late.kind === 'replay') return c.json(late.response, 201)
       return c.json({ error: 'price_changed', unitPricePiastres, availableSeatIds }, 409)
     }
 

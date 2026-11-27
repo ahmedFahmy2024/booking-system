@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   bookingCutoffAt,
   cairoWallClockToInstant,
+  guestCancellationCutoffAt,
   isBookingClosed,
+  isGuestCancellationClosed,
   isSeatAvailable,
   occupancyOf,
   schedulesOverlap,
@@ -89,6 +91,20 @@ describe('booking window and seat availability', () => {
     expect(isBookingClosed(startsAt, new Date(cutoff.getTime() - 1))).toBe(false)
     expect(isBookingClosed(startsAt, cutoff)).toBe(true)
     expect(isBookingClosed(startsAt, new Date(cutoff.getTime() + 1))).toBe(true)
+  })
+
+  it('closes guest cancellation at the exact two-hour instant', () => {
+    const cutoff = guestCancellationCutoffAt(startsAt)
+    expect(cutoff.toISOString()).toBe('2026-12-01T08:00:00.000Z')
+    expect(isGuestCancellationClosed(startsAt, new Date(cutoff.getTime() - 1))).toBe(false)
+    expect(isGuestCancellationClosed(startsAt, cutoff)).toBe(true)
+    expect(isGuestCancellationClosed(startsAt, new Date(cutoff.getTime() + 1))).toBe(true)
+  })
+
+  it('keeps the two-hour guest cutoff distinct from the 15-minute checkout cutoff', () => {
+    expect(guestCancellationCutoffAt(startsAt).getTime()).toBeLessThan(
+      bookingCutoffAt(startsAt).getTime(),
+    )
   })
 
   it('derives availability from the out-of-service flag and the claim set', () => {

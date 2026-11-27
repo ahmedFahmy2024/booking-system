@@ -80,6 +80,7 @@ D1–D8 were approved on 2026-11-22. Use them with the launch, booking, and oper
 - Treat the two-hour guest cutoff and the 15-minute online cutoff as closing instants in Cairo time. The action is refused at the exact cutoff and after it. Operations staff can cancel on request before showtime start, with a recorded reason.
 - Keep booking status, arrival, and venue payment distinct. Start confirmed, unpaid, and not arrived. Record arrival and payment independently with timestamps and actor attribution. Staff can mark a confirmed booking as a no-show at or after start only when no arrival has been recorded.
 - Admins can cancel an upcoming showtime with a reason. In one operation, close bookings for that showtime and cancel its active bookings while preserving history and recorded payments. Staff handle any venue payment adjustments outside the website for this release. Cancellation requests and racing confirmations must leave consistent state.
+- B5.2 implementation note: a guest cancellation carries the private credential in an `X-Guest-Token` request header rather than the link's query string, so an access log, browser history or Referer never holds it. The read link keeps its existing query form for compatibility. Repeated cancellation is an idempotent success, so a lost response can be retried safely.
 
 ### D6 — Email delivery
 
@@ -157,14 +158,14 @@ Applies [D2](#d2--guest-link-and-checkout-access), [D4](#d4--booking-prices-and-
 - [x] **B4.3** Refresh availability when a seat is taken and keep the available selections. When a price changes before confirmation, show the revised total and ask the guest to confirm it. Verified 2026-11-24; evidence in `docs/progress-tracker.md#b43--availability-refresh-and-revised-total-2026-11-24`.
 - [x] **B4.4** Persist the quoted price and booking reference. Show the film, showtime, auditorium, seat labels, and venue payment instructions on confirmation.
 - [x] **B4.5** Persist the confirmation idempotency key with the booking. Replay the original outcome for the same request, and return a conflict when the same key is reused with different input. Verified 2026-11-25; evidence in `docs/progress-tracker.md#b45--confirmation-idempotency-2026-11-25`.
-- [ ] **B4.6** Verify the booking path in Playwright and the seat claims against the isolated database. Cover two competing requests for the same seat, a multi-seat conflict with zero partial writes, and the exact booking cutoff.
+- [x] **B4.6** Verify the booking path in Playwright and the seat claims against the isolated database. Cover two competing requests for the same seat, a multi-seat conflict with zero partial writes, and the exact booking cutoff. Verified 2026-11-27; evidence in `docs/progress-tracker.md#b46--live-booking-verification-2026-11-27`.
 
 ### B5 — Booking retrieval and cancellation
 
 Applies [D2](#d2--guest-link-and-checkout-access) and [D5](#d5--cancellation-attendance-and-venue-payments).
 
-- [ ] **B5.1** Build the guest booking-details page and permitted actions behind the private link. Verify that the reference alone reveals no contact details.
-- [ ] **B5.2** Add guest cancellation before the two-hour cutoff. Cancel the whole booking and release all seats together. Verify the cutoff and a repeated cancellation.
+- [x] **B5.1** Build the guest booking-details page and permitted actions behind the private link. Verify that the reference alone reveals no contact details. Verified 2026-11-27; evidence in `docs/progress-tracker.md#b51--guest-booking-details-2026-11-27`.
+- [x] **B5.2** Add guest cancellation before the two-hour cutoff. Cancel the whole booking and release all seats together. Verify the cutoff and a repeated cancellation. Verified 2026-11-27; evidence in `docs/progress-tracker.md#b52--guest-cancellation-2026-11-27`.
 - [ ] **B5.3** Add staff cancellation on guest request before the showtime starts. Require and record the reason with the staff actor.
 - [ ] **B5.4** Add admin showtime cancellation, preserving booking history and blocking new bookings. For time or auditorium changes after bookings exist, direct the admin through cancellation and publishing a new showtime.
 - [ ] **B5.5** Verify that a confirmation racing with a showtime cancellation cannot leave an active booking for the cancelled showtime. Connect guest notification delivery in B7.

@@ -17,6 +17,8 @@
     "admin:bootstrap": "tsx scripts/bootstrap-admin.ts",
     "auth:verify-flow": "tsx scripts/verify-auth-flow.ts",
     "verify:cinema-paths": "tsx --env-file=.env.test scripts/verify-cinema-paths.ts",
+    "verify:booking-live": "tsx --env-file=.env.test scripts/verify-booking-live.ts",
+    "seed:booking-e2e": "tsx --env-file=.env.test scripts/seed-booking-e2e.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },

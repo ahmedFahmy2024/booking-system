@@ -148,6 +148,21 @@ export function isBookingClosed(startsAt: Date, now: Date = new Date()): boolean
   return now.getTime() >= bookingCutoffAt(startsAt).getTime()
 }
 
+/** D5: guest self-cancellation closes two hours before the showtime. */
+export const GUEST_CANCELLATION_CUTOFF_MINUTES = 120
+
+/**
+ * Measured from the stored showtime instant, like the 15-minute checkout rule.
+ * Both are closing instants: the boundary itself is already closed.
+ */
+export function guestCancellationCutoffAt(startsAt: Date): Date {
+  return new Date(startsAt.getTime() - GUEST_CANCELLATION_CUTOFF_MINUTES * MINUTE_MS)
+}
+
+export function isGuestCancellationClosed(startsAt: Date, now: Date = new Date()): boolean {
+  return now.getTime() >= guestCancellationCutoffAt(startsAt).getTime()
+}
+
 /** A claimed seat is unavailable; so is one the auditorium took out of service. */
 export function isSeatAvailable(
   seat: { id: string; outOfService: boolean },

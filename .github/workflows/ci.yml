@@ -11,7 +11,8 @@ permissions:
 # Both apps have their own lockfile and no root workspace package.
 # Hono route tests mock getDb(), so Web and API need no DATABASE_URL secret.
 # The manual Booking flow job is separate: Playwright needs a real Neon
-# database named booking_system_test (migrated, seeded with service id 1).
+# database named booking_system_test, migrated through 0009. The spec seeds
+# its own test admin and cinema fixture through the admin API.
 # Store its pooled connection string in the E2E_DATABASE_URL repository secret.
 
 jobs:

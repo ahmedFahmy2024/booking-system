@@ -307,6 +307,34 @@ describe('POST /bookings/confirm — atomic cinema checkout', () => {
     expect(getCapturedMessages()).toHaveLength(0)
   })
 
+  it('replays an identical retry that sees the winner’s claim after its replay read', async () => {
+    // Both requests start together: the replay read misses the winner, then a
+    // competing claim becomes visible before this request reads claims. The
+    // same key and payload must still replay, not report a seat conflict.
+    mocks.claimRows = [{ seatId: SEAT_1 }, { seatId: SEAT_2 }]
+    mocks.limitQueue = [[], [showtimeRow], [replayRow()]]
+
+    const res = await post()
+
+    expect(res.status).toBe(201)
+    expect(await res.json()).toEqual({ ...storedResponse, customerEmail: payload.customerEmail })
+    expect(mocks.batch).not.toHaveBeenCalled()
+    expect(getCapturedMessages()).toHaveLength(0)
+  })
+
+  it('replays an identical retry when a price change lands after its replay read', async () => {
+    const quoted = { ...payload, quotedUnitPricePiastres: 2500 }
+    const repriced = { ...showtimeRow, pricePiastres: 3000 }
+    mocks.limitQueue = [[], [repriced], [replayRow(quoted)]]
+
+    const res = await post(quoted)
+
+    expect(res.status).toBe(201)
+    expect(await res.json()).toEqual({ ...storedResponse, customerEmail: payload.customerEmail })
+    expect(mocks.batch).not.toHaveBeenCalled()
+    expect(getCapturedMessages()).toHaveLength(0)
+  })
+
   it('reports a key conflict when a racing batch loses a seat with the same key but another payload', async () => {
     const duplicate = new Error('duplicate key')
     ;(duplicate as Error & { code: string; constraint: string }).code = '23505'

@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminAuditoriumsRouteImport } from './routes/admin/auditoriums'
 import { Route as AdminFilmsRouteImport } from './routes/admin/films'
 import { Route as ShowtimesShowtimeIdRouteImport } from './routes/showtimes.$showtimeId'
+import { Route as GuestBookingsReferenceRouteImport } from './routes/guest/bookings.$reference'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const ShowtimesShowtimeIdRoute = ShowtimesShowtimeIdRouteImport.update({
   path: '/showtimes/$showtimeId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GuestBookingsReferenceRoute = GuestBookingsReferenceRouteImport.update({
+  id: '/guest/bookings/$reference',
+  path: '/guest/bookings/$reference',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin/auditoriums': typeof AdminAuditoriumsRoute
   '/admin/films': typeof AdminFilmsRoute
   '/showtimes/$showtimeId': typeof ShowtimesShowtimeIdRoute
+  '/guest/bookings/$reference': typeof GuestBookingsReferenceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin/auditoriums': typeof AdminAuditoriumsRoute
   '/admin/films': typeof AdminFilmsRoute
   '/showtimes/$showtimeId': typeof ShowtimesShowtimeIdRoute
+  '/guest/bookings/$reference': typeof GuestBookingsReferenceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,19 +61,30 @@ export interface FileRoutesById {
   '/admin/auditoriums': typeof AdminAuditoriumsRoute
   '/admin/films': typeof AdminFilmsRoute
   '/showtimes/$showtimeId': typeof ShowtimesShowtimeIdRoute
+  '/guest/bookings/$reference': typeof GuestBookingsReferenceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/admin/auditoriums' | '/admin/films' | '/showtimes/$showtimeId'
+    | '/'
+    | '/admin/auditoriums'
+    | '/admin/films'
+    | '/showtimes/$showtimeId'
+    | '/guest/bookings/$reference'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin/auditoriums' | '/admin/films' | '/showtimes/$showtimeId'
+  to:
+    | '/'
+    | '/admin/auditoriums'
+    | '/admin/films'
+    | '/showtimes/$showtimeId'
+    | '/guest/bookings/$reference'
   id:
     | '__root__'
     | '/'
     | '/admin/auditoriums'
     | '/admin/films'
     | '/showtimes/$showtimeId'
+    | '/guest/bookings/$reference'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -73,6 +92,7 @@ export interface RootRouteChildren {
   AdminAuditoriumsRoute: typeof AdminAuditoriumsRoute
   AdminFilmsRoute: typeof AdminFilmsRoute
   ShowtimesShowtimeIdRoute: typeof ShowtimesShowtimeIdRoute
+  GuestBookingsReferenceRoute: typeof GuestBookingsReferenceRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -105,6 +125,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShowtimesShowtimeIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/guest/bookings/$reference': {
+      id: '/guest/bookings/$reference'
+      path: '/guest/bookings/$reference'
+      fullPath: '/guest/bookings/$reference'
+      preLoaderRoute: typeof GuestBookingsReferenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -113,6 +140,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAuditoriumsRoute: AdminAuditoriumsRoute,
   AdminFilmsRoute: AdminFilmsRoute,
   ShowtimesShowtimeIdRoute: ShowtimesShowtimeIdRoute,
+  GuestBookingsReferenceRoute: GuestBookingsReferenceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
