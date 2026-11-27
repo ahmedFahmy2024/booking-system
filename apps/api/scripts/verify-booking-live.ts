@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { neon } from '@neondatabase/serverless'
 import { app } from '../src/app.js'
+import { auth } from '../src/auth.js'
 import { clearCapturedMessages, getCapturedMessages } from '../src/features/mail/index.js'
 import { bookingCutoffAt, isBookingClosed } from '../src/features/showtimes/schedule.js'
 
@@ -9,9 +10,11 @@ import { bookingCutoffAt, isBookingClosed } from '../src/features/showtimes/sche
  * B4.6 live rehearsal on the isolated database. Drives the real confirmation
  * route with real Neon writes: competing seat claims, a multi-seat conflict,
  * the booking cutoff, concurrent idempotency replay and the price window.
+ * B5.3 adds the staff cancellation path against the same isolated data.
  * The fixture uses fixed IDs, is removed before and after the run, and never
  * touches prototype rows, credentials or production data. Run with
- * `npm run verify:booking-live`, which loads `.env.test` first.
+ * `npm run verify:booking-live`, which loads `.env.test` first; the staff
+ * checks require the isolated-only admin from `npm run seed:booking-e2e`.
  */
 
 for (const key of ['DATABASE_URL', 'DATABASE_URL_UNPOOLED'] as const) {
@@ -41,6 +44,7 @@ const showtime = {
   open: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
   price: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
   cancelClosed: 'f0f0f0f0-f0f0-4f0f-8f0f-f0f0f0f0f0f0',
+  staffPast: 'bfbfbfbf-bfbf-4fbf-8fbf-bfbfbfbfbfbf',
 } as const
 const seats = {
   a1: 'aaaa0000-0000-4000-8000-000000000001',
@@ -106,6 +110,8 @@ const startsAt = {
   // The two-hour guest cutoff for this showtime is the rehearsal start, so by
   // the time the cancellation request runs it is already closed.
   [showtime.cancelClosed]: minutesFromNow(120),
+  // B5.3: staff may cancel on request only before the showtime starts.
+  [showtime.staffPast]: minutesFromNow(-60),
 } as Record<string, string>
 
 async function seed() {
@@ -129,9 +135,17 @@ async function seed() {
     const start = new Date(startsAt[id])
     const endsAt = new Date(start.getTime() + 135 * 60_000).toISOString()
     const targetAuditorium =
-      id === showtime.cancelClosed ? auditoriumC : id === showtime.main || id === showtime.race || id === showtime.closed ? auditoriumA : auditoriumB
+      id === showtime.cancelClosed || id === showtime.staffPast
+        ? auditoriumC
+        : id === showtime.main || id === showtime.race || id === showtime.closed
+          ? auditoriumA
+          : auditoriumB
     const auditoriumName =
-      id === showtime.cancelClosed ? 'B4.6 Screen C' : targetAuditorium === auditoriumA ? 'B4.6 Screen A' : 'B4.6 Screen B'
+      targetAuditorium === auditoriumC
+        ? 'B4.6 Screen C'
+        : targetAuditorium === auditoriumA
+          ? 'B4.6 Screen A'
+          : 'B4.6 Screen B'
     await sql`
       INSERT INTO showtimes
         (id, film_id, auditorium_id, starts_at, occupancy_ends_at, status, price_piastres, layout_snapshot)
@@ -176,6 +190,77 @@ async function guestCancel(reference: string, token: string | undefined, ip: str
       ...(token ? { 'x-guest-token': token } : {}),
       'x-forwarded-for': ip,
     },
+  })
+}
+
+// The isolated-only admin is created by `npm run seed:booking-e2e`; no
+// credential is printed and the guard above refuses any other database.
+const staffEmail = 'b46-e2e-admin@example.com'
+const staffPassword = 'B46E2EPass123!'
+// A second isolated-only staff member makes the race test able to detect an
+// actor overwrite, which a race between two identical sessions cannot.
+const opsEmail = 'b53-ops@example.com'
+const opsPassword = 'B53OpsPass123!'
+
+function sessionCookie(response: Response): string {
+  const match = /(?:__Secure-)?better-auth\.session_token=([^;]+)/.exec(
+    response.headers.get('set-cookie') ?? '',
+  )
+  assert.ok(match, 'the staff sign-in returned no session cookie')
+  return `better-auth.session_token=${match[1]}`
+}
+
+async function staffSignInAs(
+  email: string,
+  password: string,
+): Promise<{ cookie: string; actorId: string }> {
+  const signedIn = await app.request('/api/auth/sign-in/email', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'http://localhost:3000',
+      'x-forwarded-for': '203.0.113.40',
+    },
+    body: JSON.stringify({ email, password }),
+  })
+  assert.equal(signedIn.status, 200, await signedIn.clone().text())
+  const [actor] = await sql`SELECT id FROM "user" WHERE email = ${email}`
+  assert.ok(actor, 'the isolated staff account is missing')
+  return { cookie: sessionCookie(signedIn), actorId: String(actor.id) }
+}
+
+async function ensureOperationsStaff() {
+  const [existing] = await sql`
+    SELECT id, role, banned FROM "user" WHERE email = ${opsEmail}
+  `
+  if (!existing) {
+    await auth.api.createUser({
+      body: {
+        name: 'B5.3 Ops',
+        email: opsEmail,
+        password: opsPassword,
+        role: 'operations',
+      },
+    })
+  } else if (existing.role !== 'operations' || existing.banned) {
+    await sql`
+      UPDATE "user" SET role = 'operations', banned = false, ban_reason = NULL
+      WHERE email = ${opsEmail}
+    `
+  }
+  return staffSignInAs(opsEmail, opsPassword)
+}
+
+async function staffCancel(id: string, reason: string, cookie?: string) {
+  return app.request(`/bookings/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'http://localhost:3000',
+      'x-forwarded-for': '203.0.113.41',
+      ...(cookie ? { Cookie: cookie } : {}),
+    },
+    body: JSON.stringify({ reason }),
   })
 }
 
@@ -527,6 +612,186 @@ try {
     cutoffStoredStatus: stillConfirmed.status,
     referenceOnlyStatus: referenceOnlyCancel.status,
   }
+
+  // B5.3: staff cancel on the guest's request before the showtime starts,
+  // with a required reason and the acting staff id stored on the booking.
+  const { cookie, actorId } = await staffSignInAs(staffEmail, staffPassword)
+  const staffGuestEmail = 'b53-staff@example.com'
+  const staffBooking = await confirm(
+    {
+      showtimeId: showtime.main,
+      seatIds: [seats.a5],
+      customerEmail: staffGuestEmail,
+      quotedUnitPricePiastres: 2500,
+    },
+    randomUUID(),
+    '203.0.113.42',
+  )
+  assert.equal(staffBooking.status, 201, JSON.stringify(staffBooking.body))
+  const staffBookingId = String(staffBooking.body.id)
+  const staffReason = 'Guest called the cinema to cancel'
+
+  const anonymous = await staffCancel(staffBookingId, staffReason)
+  assert.equal(anonymous.status, 401)
+  assert.deepEqual(await anonymous.json(), { error: 'authentication_required' })
+  const blankReason = await staffCancel(staffBookingId, '   ', cookie)
+  assert.equal(blankReason.status, 400)
+  const [beforeStaff] = await sql`SELECT status FROM bookings WHERE id = ${staffBookingId}`
+  assert.equal(beforeStaff.status, 'confirmed')
+
+  const staffResponse = await staffCancel(staffBookingId, staffReason, cookie)
+  assert.equal(staffResponse.status, 200, await staffResponse.clone().text())
+  const staffBody = (await staffResponse.json()) as Record<string, unknown>
+  assert.equal(staffBody.reference, staffBooking.body.reference)
+  assert.equal(staffBody.status, 'cancelled')
+  assert.equal(staffBody.cancelledByUserId, actorId)
+  assert.equal(staffBody.cancellationReason, staffReason)
+  assert.ok(staffBody.cancelledAt, 'the response has no cancellation timestamp')
+
+  const [storedStaff] = await sql`
+    SELECT status, cancelled_at, cancelled_by_user_id, cancellation_reason
+    FROM bookings WHERE id = ${staffBookingId}
+  `
+  assert.equal(storedStaff.status, 'cancelled')
+  assert.equal(storedStaff.cancelled_by_user_id, actorId)
+  assert.equal(storedStaff.cancellation_reason, staffReason)
+  assert.ok(storedStaff.cancelled_at, 'cancelled_at was not stored')
+  const expectedStaffResponse = JSON.stringify({
+    id: staffBookingId,
+    reference: staffBooking.body.reference,
+    status: 'cancelled',
+    // Neon renders timestamptz as "YYYY-MM-DD HH:mm:ss.sss+00"; compare the
+    // instant, not the driver's textual representation.
+    cancelledAt: new Date(storedStaff.cancelled_at).toISOString(),
+    cancelledByUserId: storedStaff.cancelled_by_user_id,
+    cancellationReason: storedStaff.cancellation_reason,
+  })
+  assert.equal(
+    JSON.stringify(staffBody),
+    expectedStaffResponse,
+    'the response did not match the committed cancellation row',
+  )
+  assert.equal(Object.keys(staffBody).length, 6, 'the response has extra fields')
+  const [staffClaims] = await sql`
+    SELECT count(*)::int AS claims FROM booking_seats WHERE booking_id = ${staffBookingId}
+  `
+  assert.equal(Number(staffClaims.claims), 0)
+  const mapAfterStaff = await app.request(`/showtimes/${showtime.main}/seat-map`)
+  assert.equal(mapAfterStaff.status, 200)
+  const staffMap = (await mapAfterStaff.json()) as {
+    seats: Array<{ id: string; available: boolean }>
+  }
+  assert.equal(staffMap.seats.find((seat) => seat.id === seats.a5)?.available, true)
+
+  // A lost response is retried safely: the original actor, reason and time are
+  // returned byte-identically even if the retry supplies a different reason.
+  const repeatedStaff = await staffCancel(staffBookingId, 'A different reason', cookie)
+  assert.equal(repeatedStaff.status, 200)
+  const repeatedStaffBody = await repeatedStaff.json()
+  assert.deepEqual(repeatedStaffBody, staffBody)
+  const [afterStaffRepeat] = await sql`
+    SELECT cancelled_at, cancelled_by_user_id, cancellation_reason
+    FROM bookings WHERE id = ${staffBookingId}
+  `
+  assert.equal(
+    new Date(afterStaffRepeat.cancelled_at).getTime(),
+    new Date(storedStaff.cancelled_at).getTime(),
+  )
+  assert.equal(afterStaffRepeat.cancelled_by_user_id, actorId)
+  assert.equal(afterStaffRepeat.cancellation_reason, staffReason)
+  assert.equal(guestMails(staffGuestEmail), 1)
+
+  // The cutoff is the showtime start, not the two-hour guest boundary. A
+  // started showtime cannot be cancelled by staff through this route.
+  const pastBookingId = 'c3c3c3c3-c3c3-4c3c-8c3c-c3c3c3c3c3c3'
+  const pastReference = `bkg_${'e'.repeat(32)}`
+  const pastStart = startsAt[showtime.staffPast]
+  await sql`
+    INSERT INTO bookings
+      (id, customer_name, customer_email, starts_at, reference, showtime_id, idempotency_response)
+    VALUES (
+      ${pastBookingId}, 'b53-past@example.com', 'b53-past@example.com', ${pastStart},
+      ${pastReference}, ${showtime.staffPast},
+      ${JSON.stringify({
+        id: pastBookingId,
+        reference: pastReference,
+        showtimeId: showtime.staffPast,
+        filmTitle: 'فيلم التحقق الحي',
+        startsAt: pastStart,
+        auditoriumName: 'B4.6 Screen C',
+        seatLabels: ['C1'],
+        seatIds: [seats.c1],
+        unitPricePiastres: 2500,
+        totalPiastres: 2500,
+      })}::jsonb
+    )
+  `
+  const started = await staffCancel(pastBookingId, staffReason, cookie)
+  assert.equal(started.status, 409)
+  assert.deepEqual(await started.json(), { error: 'showtime_started' })
+  const [pastStored] = await sql`
+    SELECT status, cancelled_at FROM bookings WHERE id = ${pastBookingId}
+  `
+  assert.equal(pastStored.status, 'confirmed')
+  assert.equal(pastStored.cancelled_at, null)
+
+  // Two concurrent staff cancellations: exactly one actor/reason is stored and
+  // both callers see the same cancelled outcome.
+  const raceEmail = 'b53-race@example.com'
+  const raceBooking = await confirm(
+    {
+      showtimeId: showtime.main,
+      seatIds: [seats.a1],
+      customerEmail: raceEmail,
+      quotedUnitPricePiastres: 2500,
+    },
+    randomUUID(),
+    '203.0.113.43',
+  )
+  assert.equal(raceBooking.status, 201, JSON.stringify(raceBooking.body))
+  const raceId = String(raceBooking.body.id)
+  const { cookie: opsCookie, actorId: opsActorId } = await ensureOperationsStaff()
+  const [raceA, raceB] = await Promise.all([
+    staffCancel(raceId, 'First staff reason', cookie),
+    staffCancel(raceId, 'Second staff reason', opsCookie),
+  ])
+  assert.equal(raceA.status, 200)
+  assert.equal(raceB.status, 200)
+  assert.deepEqual(await raceB.json(), await raceA.clone().json())
+  const [raceStored] = await sql`
+    SELECT cancelled_by_user_id, cancellation_reason FROM bookings WHERE id = ${raceId}
+  `
+  assert.ok(['First staff reason', 'Second staff reason'].includes(raceStored.cancellation_reason))
+  assert.equal(
+    raceStored.cancelled_by_user_id,
+    raceStored.cancellation_reason === 'First staff reason' ? actorId : opsActorId,
+    'the losing staff member overwrote the winner actor',
+  )
+  const [raceClaims] = await sql`
+    SELECT count(*)::int AS claims FROM booking_seats WHERE booking_id = ${raceId}
+  `
+  assert.equal(Number(raceClaims.claims), 0)
+  results.staffCancellation = {
+    anonymousStatus: anonymous.status,
+    blankReasonStatus: blankReason.status,
+    status: staffResponse.status,
+    storedStatus: storedStaff.status,
+    storedActorMatchesStaff: storedStaff.cancelled_by_user_id === actorId,
+    storedReason: storedStaff.cancellation_reason,
+    responseMatchesStoredRow: JSON.stringify(staffBody) === expectedStaffResponse,
+    fixedFieldCount: Object.keys(staffBody).length,
+    credentialFieldsAbsent:
+      !('token' in staffBody) && !('guestLinkVerifier' in staffBody) && !('customerEmail' in staffBody),
+    claimsAfterCancel: Number(staffClaims.claims),
+    seatAvailableAgain: staffMap.seats.find((seat) => seat.id === seats.a5)?.available,
+    repeatedBodyIdentical: JSON.stringify(repeatedStaffBody) === JSON.stringify(staffBody),
+    startedStatus: started.status,
+    startedStoredStatus: pastStored.status,
+    raceStatuses: [raceA.status, raceB.status],
+    raceStoredReason: raceStored.cancellation_reason,
+    raceActorMatchesWinner: true,
+    raceClaimsAfter: Number(raceClaims.claims),
+  }
 } finally {
   await cleanup()
   clearCapturedMessages()
@@ -539,10 +804,19 @@ const prototypeAfter = await sql`
 `
 assert.deepEqual(prototypeAfter, prototypeBefore, 'prototype rows changed during the rehearsal')
 
+// B5.3 migration 0010 must exist on the isolated database before the staff
+// writes above can be trusted. No credential is printed here either.
+const migrationColumns = await sql`
+  SELECT column_name FROM information_schema.columns
+  WHERE table_name = 'bookings' AND column_name IN ('cancelled_by_user_id', 'cancellation_reason')
+`
+assert.equal(migrationColumns.length, 2, 'migration 0010 columns are missing')
+
 console.log(
   JSON.stringify(
     {
       targetDatabase: 'booking_system_test',
+      migrationColumns: migrationColumns.map((row) => String(row.column_name)).sort(),
       results,
       prototypeRows: { before: prototypeBefore, after: prototypeAfter },
       fixtureRemoved: true,

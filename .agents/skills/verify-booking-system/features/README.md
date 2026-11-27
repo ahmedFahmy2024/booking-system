@@ -5,3 +5,4 @@ Use the [verification skill](../SKILL.md) for launch, doctor, evidence, and clea
 - [Cinema booking journey](cinema-booking.md) — catalogue, seat selection, confirmation retry, persistence, and isolated-database claim invariants.
 - [Guest booking details](guest-booking-details.md) — private-link read, generic denials, no credential in the DOM, and the live guest-detail path.
 - [Guest cancellation](guest-cancellation.md) — explicit write, atomic seat release, two-hour cutoff, idempotent repeat, and cache invalidation.
+- [Staff cancellation](staff-cancellation.md) — authenticated write with reason and actor, showtime-start cutoff, compare-and-swap under races, and the live staff path.

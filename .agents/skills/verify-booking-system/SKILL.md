@@ -7,7 +7,7 @@ description: Verify booking-system changes through the React booking screens, Vi
 
 ## Launch
 
-Run from the repository root with Node 24 and both apps' dependencies installed. Install Chromium once with `npm --prefix apps/web exec -- playwright install chromium`. Use a dedicated Postgres database named `booking_system_test`, migrated through `0009_calm_roxanne_simpson` (seat claims, idempotency and booking cancellation status), with its pooled URL in `apps/api/.env.test`. Playwright seeds an isolated test admin before starting Hono; the spec creates its own film, auditorium and showtime, so service ID `1` is no longer required.
+Run from the repository root with Node 24 and both apps' dependencies installed. Install Chromium once with `npm --prefix apps/web exec -- playwright install chromium`. Use a dedicated Postgres database named `booking_system_test`, migrated through `0010_colorful_brother_voodoo` (seat claims, idempotency, booking cancellation status and staff cancellation actor/reason), with its pooled URL in `apps/api/.env.test`. Playwright seeds an isolated test admin before starting Hono; the spec creates its own film, auditorium and showtime, so service ID `1` is no longer required. The live staff-cancellation checks also need that isolated-only admin (`npm --prefix apps/api run seed:booking-e2e`).
 
 Playwright starts its own Hono server on port 3000 and Vite server on port 5173 for the run. The browser reaches Hono through Vite's `/api` proxy. If an unrelated service occupies 3000, set `E2E_API_PORT` and `E2E_WEB_PORT` (for example 3100 and 5273); the Vite proxy target follows `E2E_API_TARGET` from the Playwright config. Parallel runs require separate ports and data.
 

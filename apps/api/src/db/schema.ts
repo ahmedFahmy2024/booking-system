@@ -1,5 +1,6 @@
 import { relations, sql } from 'drizzle-orm'
 import { check, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { user } from './auth-schema.js'
 import { showtimes } from './cinema-schema.js'
 
 export * from './auth-schema.js'
@@ -75,6 +76,17 @@ export const bookings = pgTable('bookings', {
   status: text('status').$type<BookingStatus>().notNull().default('confirmed'),
   /** Set when a guest or staff cancellation is accepted; no actor for guests. */
   cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+  /**
+   * D5/B5.3: the staff actor who accepted a cancellation on the guest's
+   * request; NULL for guest self-cancellation and older rows. Staff are
+   * deactivated rather than deleted (see the permission matrix), so the
+   * attribution stays valid; `set null` only guards an out-of-band deletion.
+   */
+  cancelledByUserId: text('cancelled_by_user_id').references(() => user.id, {
+    onDelete: 'set null',
+  }),
+  /** Required, trimmed reason for a staff cancellation; NULL otherwise. */
+  cancellationReason: text('cancellation_reason'),
   /** D4: stable key from the guest's confirmation attempt; NULL on older rows. */
   idempotencyKey: text('idempotency_key'),
   /** SHA-256 of the canonical request; reusing the key with another payload conflicts. */

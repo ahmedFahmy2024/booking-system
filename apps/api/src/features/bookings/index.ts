@@ -1,12 +1,19 @@
 import { zValidator } from '@hono/zod-validator'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import type { AuthEnv } from '../../auth/middleware.js'
 import { requireStaff } from '../../auth/middleware.js'
 import { getDb } from '../../db/index.js'
-import { bookings, services } from '../../db/schema.js'
+import {
+  bookingSeats,
+  bookings,
+  services,
+  type BookingStatus,
+  type StoredConfirmationResponse,
+} from '../../db/schema.js'
 import { rateLimit } from '../../rate-limit.js'
+import { isStaffCancellationClosed } from '../showtimes/schedule.js'
 import {
   createBookingReference,
   createGuestCredential,
@@ -147,3 +154,120 @@ bookingsRoutes.post('/:id/guest-link/resend', requireStaff, async (c) => {
   await sendGuestLink(booking.customerEmail, booking.reference, credential)
   return c.json({ id: booking.id, sent: true })
 })
+
+// B5.3: staff cancel a whole booking on the guest's request before the showtime
+// starts. This is deliberately separate from the guest write in /guest: it
+// needs a staff session, a reason, and an attributed actor. It never accepts a
+// guest credential or sends email (notifications belong to B7).
+const staffCancelSchema = z.object({
+  reason: z.string().trim().min(1).max(500),
+})
+const staffCancelIdSchema = z.object({ id: z.uuid() })
+
+interface StaffCancellationRow {
+  id: string
+  reference: string
+  status: BookingStatus
+  startsAt: Date
+  cancelledAt: Date | null
+  cancelledByUserId: string | null
+  cancellationReason: string | null
+  idempotencyResponse: StoredConfirmationResponse | null
+}
+
+async function readStaffBooking(id: string): Promise<StaffCancellationRow | undefined> {
+  const [row] = await getDb()
+    .select({
+      id: bookings.id,
+      reference: bookings.reference,
+      status: bookings.status,
+      startsAt: bookings.startsAt,
+      cancelledAt: bookings.cancelledAt,
+      cancelledByUserId: bookings.cancelledByUserId,
+      cancellationReason: bookings.cancellationReason,
+      idempotencyResponse: bookings.idempotencyResponse,
+    })
+    .from(bookings)
+    .where(eq(bookings.id, id))
+    .limit(1)
+  return row as StaffCancellationRow | undefined
+}
+
+/** Fixed field set: a cancelled outcome with its recorded actor and reason. */
+function staffCancelledResponse(row: StaffCancellationRow) {
+  return {
+    id: row.id,
+    reference: row.reference,
+    status: 'cancelled' as const,
+    cancelledAt: row.cancelledAt ? row.cancelledAt.toISOString() : null,
+    cancelledByUserId: row.cancelledByUserId,
+    cancellationReason: row.cancellationReason,
+  }
+}
+
+function staffBookingStartsAt(row: StaffCancellationRow): Date {
+  // Cinema bookings keep the showtime instant in the frozen confirmation;
+  // prototype rows predate it and keep their stored start time.
+  return row.idempotencyResponse ? new Date(row.idempotencyResponse.startsAt) : row.startsAt
+}
+
+bookingsRoutes.post(
+  '/:id/cancel',
+  requireStaff,
+  zValidator('param', staffCancelIdSchema),
+  zValidator('json', staffCancelSchema),
+  async (c) => {
+    const { id } = c.req.valid('param')
+    const { reason } = c.req.valid('json')
+    const actorId = c.get('session')!.user.id
+
+    const row = await readStaffBooking(id)
+    if (!row) return c.json({ error: 'booking_not_found' }, 404)
+
+    // A lost response can be retried safely: report the stored outcome without
+    // a second write or a second actor/reason replacing the first one.
+    if (row.status === 'cancelled') return c.json(staffCancelledResponse(row))
+
+    // Staff may act inside the two-hour window where a guest no longer can,
+    // but not once the showtime itself has started. Re-check with the exact
+    // instant written on the booking so a slow read cannot admit a write that
+    // commits after the start.
+    const now = new Date()
+    if (isStaffCancellationClosed(staffBookingStartsAt(row), now)) {
+      return c.json({ error: 'showtime_started' }, 409)
+    }
+
+    const db = getDb()
+    const [updated] = await db.batch([
+      db
+        .update(bookings)
+        .set({
+          status: 'cancelled',
+          cancelledAt: now,
+          cancelledByUserId: actorId,
+          cancellationReason: reason,
+        })
+        // Compare and swap: if a guest or another staff member cancels first,
+        // this write must not overwrite the winner's actor or reason.
+        .where(and(eq(bookings.id, id), eq(bookings.status, 'confirmed')))
+        .returning({ id: bookings.id }),
+      db.delete(bookingSeats).where(eq(bookingSeats.bookingId, id)),
+    ])
+
+    if (!updated || updated.length === 0) {
+      const winner = await readStaffBooking(id)
+      if (!winner) return c.json({ error: 'booking_not_found' }, 404)
+      return c.json(staffCancelledResponse(winner))
+    }
+
+    return c.json(
+      staffCancelledResponse({
+        ...row,
+        status: 'cancelled',
+        cancelledAt: now,
+        cancelledByUserId: actorId,
+        cancellationReason: reason,
+      }),
+    )
+  },
+)

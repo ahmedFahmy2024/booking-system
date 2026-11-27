@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // The route calls getDb() at request time and requireStaff calls
 // auth.api.getSession(). Mock both boundaries so tests need no DATABASE_URL and
@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => {
   const limit = vi.fn()
   const update = vi.fn()
   const set = vi.fn()
+  const remove = vi.fn()
+  const deleteWhere = vi.fn()
+  const batch = vi.fn()
 
   return {
     select: vi.fn(),
@@ -26,6 +29,9 @@ const mocks = vi.hoisted(() => {
     limit,
     update,
     set,
+    remove,
+    deleteWhere,
+    batch,
   }
 })
 
@@ -38,7 +44,13 @@ vi.mock('../../auth.js', () => ({
 }))
 
 vi.mock('../../db/index.js', () => ({
-  getDb: () => ({ select: mocks.select, insert: mocks.insert, update: mocks.update }),
+  getDb: () => ({
+    select: mocks.select,
+    insert: mocks.insert,
+    update: mocks.update,
+    delete: mocks.remove,
+    batch: mocks.batch,
+  }),
 }))
 
 import { app } from '../../app.js'
@@ -110,10 +122,17 @@ beforeEach(() => {
   mocks.from.mockReturnValue({ leftJoin: mocks.leftJoin, where: mocks.where })
   mocks.values.mockReturnValue({ returning: mocks.returning })
   mocks.leftJoin.mockResolvedValue([])
-  mocks.where.mockReturnValue({ limit: mocks.limit })
+  mocks.where.mockReturnValue({ limit: mocks.limit, returning: mocks.returning })
   mocks.limit.mockResolvedValue([])
   mocks.update.mockReturnValue({ set: mocks.set })
   mocks.set.mockReturnValue({ where: mocks.where })
+  mocks.remove.mockReturnValue({ where: mocks.deleteWhere })
+  mocks.deleteWhere.mockReturnValue({})
+  mocks.batch.mockResolvedValue([[{ id: storedBooking.id }], []])
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 function listBookings() {
@@ -392,6 +411,232 @@ describe('bookings routes', () => {
       const newCredential = getCapturedMessages()[0].text.match(/token=(gl_[A-Za-z0-9_-]+)/)?.[1]
       expect(newCredential).toBeDefined()
       expect(verifyGuestLinkVerifier(written.guestLinkVerifier, newCredential!)).toBe(true)
+    })
+  })
+
+  describe('POST /bookings/:id/cancel — staff cancellation (B5.3)', () => {
+    const cancelId = '44444444-4444-4444-8444-444444444444'
+    const cancelReference = `bkg_${'d'.repeat(32)}`
+    const now = new Date('2026-11-28T10:00:00.000Z')
+    const futureStart = new Date('2026-12-05T10:00:00.000Z')
+    const reason = 'Guest called the cinema and asked to cancel'
+    const cinemaRow = {
+      id: cancelId,
+      reference: cancelReference,
+      status: 'confirmed',
+      startsAt: futureStart,
+      cancelledAt: null,
+      cancelledByUserId: null,
+      cancellationReason: null,
+      idempotencyResponse: {
+        id: cancelId,
+        reference: cancelReference,
+        showtimeId: '55555555-5555-4555-8555-555555555555',
+        filmTitle: 'Cairo Nights',
+        startsAt: futureStart.toISOString(),
+        auditoriumName: 'Hall 1',
+        seatLabels: ['A1'],
+        seatIds: ['aaaa0000-0000-4000-8000-000000000001'],
+        unitPricePiastres: 2500,
+        totalPiastres: 2500,
+      },
+    }
+
+    function postCancel(
+      id: string = cancelId,
+      body: unknown = { reason },
+    ) {
+      return app.request(`/bookings/${id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(now)
+    })
+
+    it('refuses anonymous, deactivated and unknown-role sessions before any read', async () => {
+      mocks.getSession.mockResolvedValueOnce(null)
+      expect((await postCancel()).status).toBe(401)
+      mocks.getSession.mockResolvedValueOnce(bannedOperationsSession)
+      expect((await postCancel()).status).toBe(403)
+      mocks.getSession.mockResolvedValueOnce(wrongRoleSession)
+      expect((await postCancel()).status).toBe(403)
+
+      expect(mocks.select).not.toHaveBeenCalled()
+      expect(mocks.batch).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['operations', operationsSession, 'ops-1'],
+      ['admin', adminSession, 'admin-1'],
+    ])('lets %s cancel with a reason and records the actor in one transaction', async (_role, session, actorId) => {
+      mocks.getSession.mockResolvedValue(session)
+      mocks.limit.mockResolvedValueOnce([cinemaRow])
+      mocks.batch.mockResolvedValueOnce([[{ id: cancelId }], []])
+
+      const res = await postCancel()
+      const body = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(body).toEqual({
+        id: cancelId,
+        reference: cancelReference,
+        status: 'cancelled',
+        cancelledAt: now.toISOString(),
+        cancelledByUserId: actorId,
+        cancellationReason: reason,
+      })
+      expect(mocks.batch).toHaveBeenCalledTimes(1)
+      const written = mocks.set.mock.calls[0][0]
+      expect(written).toEqual({
+        status: 'cancelled',
+        cancelledAt: now,
+        cancelledByUserId: actorId,
+        cancellationReason: reason,
+      })
+      expect(mocks.deleteWhere).toHaveBeenCalledTimes(1)
+      expect(getCapturedMessages()).toHaveLength(0)
+    })
+
+    it('uses the stored start instant for a legacy row without a frozen snapshot', async () => {
+      mocks.getSession.mockResolvedValue(operationsSession)
+      mocks.limit.mockResolvedValueOnce([{ ...cinemaRow, idempotencyResponse: null }])
+
+      const res = await postCancel()
+
+      expect(res.status).toBe(200)
+      expect(mocks.batch).toHaveBeenCalledTimes(1)
+    })
+
+    it('refuses at the exact showtime start and one millisecond after it', async () => {
+      vi.setSystemTime(futureStart)
+      mocks.getSession.mockResolvedValue(operationsSession)
+      mocks.limit.mockResolvedValueOnce([cinemaRow])
+
+      const atBoundary = await postCancel()
+      expect(atBoundary.status).toBe(409)
+      expect(await atBoundary.json()).toEqual({ error: 'showtime_started' })
+
+      vi.setSystemTime(new Date(futureStart.getTime() + 1))
+      mocks.limit.mockResolvedValueOnce([cinemaRow])
+      const afterBoundary = await postCancel()
+      expect(afterBoundary.status).toBe(409)
+      expect(mocks.batch).not.toHaveBeenCalled()
+      expect(mocks.set).not.toHaveBeenCalled()
+    })
+
+    it('allows a cancellation one millisecond before the showtime starts', async () => {
+      vi.setSystemTime(new Date(futureStart.getTime() - 1))
+      mocks.getSession.mockResolvedValue(operationsSession)
+      mocks.limit.mockResolvedValueOnce([cinemaRow])
+      mocks.batch.mockResolvedValueOnce([[{ id: cancelId }], []])
+
+      expect((await postCancel()).status).toBe(200)
+      expect(mocks.batch).toHaveBeenCalledTimes(1)
+      expect(mocks.batch.mock.calls[0][0]).toHaveLength(2)
+    })
+
+    it('re-checks the cutoff at write time if the clock passes the start during the read', async () => {
+      vi.setSystemTime(new Date(futureStart.getTime() - 1))
+      mocks.getSession.mockResolvedValue(operationsSession)
+      mocks.limit.mockImplementationOnce(async () => {
+        vi.setSystemTime(futureStart)
+        return [cinemaRow]
+      })
+
+      const res = await postCancel()
+
+      expect(res.status).toBe(409)
+      expect(await res.json()).toEqual({ error: 'showtime_started' })
+      expect(mocks.batch).not.toHaveBeenCalled()
+    })
+
+    it('reports an already cancelled booking without a second write, even with a different reason', async () => {
+      mocks.getSession.mockResolvedValue(operationsSession)
+      const cancelled = {
+        ...cinemaRow,
+        status: 'cancelled',
+        cancelledAt: new Date('2026-11-27T09:00:00.000Z'),
+        cancelledByUserId: 'ops-9',
+        cancellationReason: 'Original reason',
+      }
+      mocks.limit.mockResolvedValue([cancelled])
+
+      const first = await postCancel(cancelId, { reason: 'A different reason' })
+      const second = await postCancel(cancelId, { reason: 'A different reason' })
+      const firstBody = await first.json()
+
+      expect(first.status).toBe(200)
+      expect(await second.json()).toEqual(firstBody)
+      expect(firstBody.cancellationReason).toBe('Original reason')
+      expect(firstBody.cancelledByUserId).toBe('ops-9')
+      expect(mocks.batch).not.toHaveBeenCalled()
+    })
+
+    it('does not overwrite the winner of a competing cancellation', async () => {
+      mocks.getSession.mockResolvedValue(operationsSession)
+      mocks.limit.mockResolvedValueOnce([cinemaRow])
+      // The guest won the race: this staff compare-and-swap updated no row.
+      mocks.batch.mockResolvedValueOnce([[], []])
+      mocks.limit.mockResolvedValueOnce([
+        {
+          ...cinemaRow,
+          status: 'cancelled',
+          cancelledAt: new Date('2026-11-27T09:00:00.000Z'),
+          cancelledByUserId: null,
+          cancellationReason: null,
+        },
+      ])
+
+      const res = await postCancel()
+      const body = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(body.cancelledByUserId).toBeNull()
+      expect(body.cancellationReason).toBeNull()
+      expect(mocks.batch).toHaveBeenCalledTimes(1)
+      expect(mocks.deleteWhere).toHaveBeenCalledTimes(1)
+    })
+
+    it('rejects blank, oversized and missing reasons before reading the booking', async () => {
+      mocks.getSession.mockResolvedValue(operationsSession)
+
+      for (const body of [
+        { reason: '' },
+        { reason: '   ' },
+        { reason: 'x'.repeat(501) },
+        {},
+      ]) {
+        const res = await postCancel(cancelId, body)
+        expect(res.status).toBe(400)
+      }
+      expect(mocks.select).not.toHaveBeenCalled()
+      expect(mocks.batch).not.toHaveBeenCalled()
+    })
+
+    it('rejects a non-UUID booking id before touching the database', async () => {
+      mocks.getSession.mockResolvedValue(operationsSession)
+
+      const res = await postCancel('not-a-uuid')
+
+      expect(res.status).toBe(400)
+      expect(mocks.select).not.toHaveBeenCalled()
+    })
+
+    it('returns 404 for an unknown booking and accepts a corrected retry for a bad reason', async () => {
+      mocks.getSession.mockResolvedValue(operationsSession)
+      mocks.limit.mockResolvedValueOnce([])
+      expect((await postCancel()).status).toBe(404)
+
+      mocks.limit.mockResolvedValueOnce([cinemaRow])
+      mocks.batch.mockResolvedValueOnce([[{ id: cancelId }], []])
+      const retry = await postCancel(cancelId, { reason: '   ' + reason + '  ' })
+      expect(retry.status).toBe(200)
+      expect((await retry.json()).cancellationReason).toBe(reason)
     })
   })
 })

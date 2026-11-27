@@ -163,6 +163,15 @@ export function isGuestCancellationClosed(startsAt: Date, now: Date = new Date()
   return now.getTime() >= guestCancellationCutoffAt(startsAt).getTime()
 }
 
+/**
+ * D5: staff cancel on a guest's request only before the showtime starts. There
+ * is no two-hour lead time for staff, and the start instant itself is already
+ * too late. The caller supplies the booking's stored (or frozen) start instant.
+ */
+export function isStaffCancellationClosed(startsAt: Date, now: Date = new Date()): boolean {
+  return now.getTime() >= startsAt.getTime()
+}
+
 /** A claimed seat is unavailable; so is one the auditorium took out of service. */
 export function isSeatAvailable(
   seat: { id: string; outOfService: boolean },

@@ -6,6 +6,7 @@ import {
   isBookingClosed,
   isGuestCancellationClosed,
   isSeatAvailable,
+  isStaffCancellationClosed,
   occupancyOf,
   schedulesOverlap,
   SHOWTIME_TURNAROUND_MINUTES,
@@ -105,6 +106,16 @@ describe('booking window and seat availability', () => {
     expect(guestCancellationCutoffAt(startsAt).getTime()).toBeLessThan(
       bookingCutoffAt(startsAt).getTime(),
     )
+  })
+
+  it('closes staff cancellation at the showtime start, not at the two-hour guest cutoff', () => {
+    // A guest can no longer cancel inside the last two hours; staff still can.
+    expect(isStaffCancellationClosed(startsAt, new Date(startsAt.getTime() - 1))).toBe(false)
+    expect(isStaffCancellationClosed(startsAt, startsAt)).toBe(true)
+    expect(isStaffCancellationClosed(startsAt, new Date(startsAt.getTime() + 1))).toBe(true)
+    const insideGuestWindow = new Date(startsAt.getTime() - 60 * 60_000)
+    expect(isGuestCancellationClosed(startsAt, insideGuestWindow)).toBe(true)
+    expect(isStaffCancellationClosed(startsAt, insideGuestWindow)).toBe(false)
   })
 
   it('derives availability from the out-of-service flag and the claim set', () => {

@@ -22,4 +22,4 @@ Migration `0009_calm_roxanne_simpson.sql` must be applied to the isolated databa
 - The mutation invalidates the detail query; a stubbed browser test must return the cancelled shape on the refetch or it will look as if the cancellation did not render.
 - `X-Guest-Token` is deliberately not the query form used by the read link. Do not move the credential back into the URL: access logs and history would retain it.
 - The two-hour cutoff is measured from the stored showtime instant, matching the 15-minute checkout rule; exact-boundary cases use a controlled clock in Vitest because real elapsed time makes a live exact-boundary assertion unreliable.
-- Guest self-cancellation records no actor or reason; staff cancellation with an actor and reason belongs to B5.3.
+- Guest self-cancellation records no actor or reason; staff cancellation with an actor and reason is [B5.3](staff-cancellation.md).

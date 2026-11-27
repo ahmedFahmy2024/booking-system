@@ -166,7 +166,7 @@ Applies [D2](#d2--guest-link-and-checkout-access) and [D5](#d5--cancellation-att
 
 - [x] **B5.1** Build the guest booking-details page and permitted actions behind the private link. Verify that the reference alone reveals no contact details. Verified 2026-11-27; evidence in `docs/progress-tracker.md#b51--guest-booking-details-2026-11-27`.
 - [x] **B5.2** Add guest cancellation before the two-hour cutoff. Cancel the whole booking and release all seats together. Verify the cutoff and a repeated cancellation. Verified 2026-11-27; evidence in `docs/progress-tracker.md#b52--guest-cancellation-2026-11-27`.
-- [ ] **B5.3** Add staff cancellation on guest request before the showtime starts. Require and record the reason with the staff actor.
+- [x] **B5.3** Add staff cancellation on guest request before the showtime starts. Require and record the reason with the staff actor. Verified 2026-11-27; evidence in `docs/progress-tracker.md#b53--staff-cancellation-on-guest-request-2026-11-27`.
 - [ ] **B5.4** Add admin showtime cancellation, preserving booking history and blocking new bookings. For time or auditorium changes after bookings exist, direct the admin through cancellation and publishing a new showtime.
 - [ ] **B5.5** Verify that a confirmation racing with a showtime cancellation cannot leave an active booking for the cancelled showtime. Connect guest notification delivery in B7.
 
