@@ -10,7 +10,8 @@ import { bookingCutoffAt, isBookingClosed } from '../src/features/showtimes/sche
  * B4.6 live rehearsal on the isolated database. Drives the real confirmation
  * route with real Neon writes: competing seat claims, a multi-seat conflict,
  * the booking cutoff, concurrent idempotency replay and the price window.
- * B5.3 adds the staff cancellation path against the same isolated data.
+ * B5.3 adds the staff cancellation path and B5.4 the admin showtime
+ * cancellation path (including the confirmation race) against the same data.
  * The fixture uses fixed IDs, is removed before and after the run, and never
  * touches prototype rows, credentials or production data. Run with
  * `npm run verify:booking-live`, which loads `.env.test` first; the staff
@@ -45,6 +46,10 @@ const showtime = {
   price: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
   cancelClosed: 'f0f0f0f0-f0f0-4f0f-8f0f-f0f0f0f0f0f0',
   staffPast: 'bfbfbfbf-bfbf-4fbf-8fbf-bfbfbfbfbfbf',
+  adminCancel: 'd1d1d1d1-d1d1-4d1d-8d1d-d1d1d1d1d1d1',
+  adminCancelRace: 'd2d2d2d2-d2d2-4d2d-8d2d-d2d2d2d2d2d2',
+  adminCancelPast: 'd3d3d3d3-d3d3-4d3d-8d3d-d3d3d3d3d3d3',
+  adminCancelAdmins: 'd5d5d5d5-d5d5-4d5d-8d5d-d5d5d5d5d5d5',
 } as const
 const seats = {
   a1: 'aaaa0000-0000-4000-8000-000000000001',
@@ -112,6 +117,11 @@ const startsAt = {
   [showtime.cancelClosed]: minutesFromNow(120),
   // B5.3: staff may cancel on request only before the showtime starts.
   [showtime.staffPast]: minutesFromNow(-60),
+  // B5.4: an upcoming showtime with a booking, a race fixture and a started one.
+  [showtime.adminCancel]: minutesFromNow(2880),
+  [showtime.adminCancelRace]: minutesFromNow(720),
+  [showtime.adminCancelPast]: minutesFromNow(-300),
+  [showtime.adminCancelAdmins]: minutesFromNow(1440),
 } as Record<string, string>
 
 async function seed() {
@@ -137,7 +147,10 @@ async function seed() {
     const targetAuditorium =
       id === showtime.cancelClosed || id === showtime.staffPast
         ? auditoriumC
-        : id === showtime.main || id === showtime.race || id === showtime.closed
+        : id === showtime.main ||
+            id === showtime.race ||
+            id === showtime.closed ||
+            id === showtime.adminCancelPast
           ? auditoriumA
           : auditoriumB
     const auditoriumName =
@@ -258,6 +271,46 @@ async function staffCancel(id: string, reason: string, cookie?: string) {
       'Content-Type': 'application/json',
       Origin: 'http://localhost:3000',
       'x-forwarded-for': '203.0.113.41',
+      ...(cookie ? { Cookie: cookie } : {}),
+    },
+    body: JSON.stringify({ reason }),
+  })
+}
+
+// A second isolated-only admin makes the competing-cancellation test able to
+// detect an actor/reason overwrite, which two identical sessions cannot.
+const secondAdminEmail = 'b54-admin-2@example.com'
+const secondAdminPassword = 'B54Admin2Pass123!'
+
+async function ensureSecondAdmin() {
+  const [existing] = await sql`
+    SELECT id, role, banned FROM "user" WHERE email = ${secondAdminEmail}
+  `
+  if (!existing) {
+    await auth.api.createUser({
+      body: {
+        name: 'B5.4 Admin 2',
+        email: secondAdminEmail,
+        password: secondAdminPassword,
+        role: 'admin',
+      },
+    })
+  } else if (existing.role !== 'admin' || existing.banned) {
+    await sql`
+      UPDATE "user" SET role = 'admin', banned = false, ban_reason = NULL
+      WHERE email = ${secondAdminEmail}
+    `
+  }
+  return staffSignInAs(secondAdminEmail, secondAdminPassword)
+}
+
+async function adminCancelShowtime(id: string, reason: string, cookie?: string) {
+  return app.request(`/admin/showtimes/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'http://localhost:3000',
+      'x-forwarded-for': '203.0.113.44',
       ...(cookie ? { Cookie: cookie } : {}),
     },
     body: JSON.stringify({ reason }),
@@ -792,6 +845,231 @@ try {
     raceActorMatchesWinner: true,
     raceClaimsAfter: Number(raceClaims.claims),
   }
+
+  // B5.4: an admin cancels an upcoming showtime with a reason. The status
+  // change, the cancellation of every active booking and the release of every
+  // claim happen in one Neon transaction; booking history is never deleted.
+  const adminReason = 'Hall closed for maintenance'
+  const adminGuestEmail = 'b54-main@example.com'
+  const adminKey = randomUUID()
+  const adminPayload = {
+    showtimeId: showtime.adminCancel,
+    seatIds: [seats.b1],
+    customerEmail: adminGuestEmail,
+    quotedUnitPricePiastres: 2500,
+  }
+  const adminBooking = await confirm(adminPayload, adminKey, '203.0.113.45')
+  assert.equal(adminBooking.status, 201, JSON.stringify(adminBooking.body))
+  const mailsBeforeAdminCancel = guestMails(adminGuestEmail)
+
+  const anonCancelShowtime = await adminCancelShowtime(showtime.adminCancel, adminReason)
+  assert.equal(anonCancelShowtime.status, 401)
+  assert.deepEqual(await anonCancelShowtime.json(), { error: 'authentication_required' })
+  const opsCancelShowtime = await adminCancelShowtime(showtime.adminCancel, adminReason, opsCookie)
+  assert.equal(opsCancelShowtime.status, 403)
+  assert.deepEqual(await opsCancelShowtime.json(), { error: 'forbidden' })
+  const blankShowtimeReason = await adminCancelShowtime(showtime.adminCancel, '   ', cookie)
+  assert.equal(blankShowtimeReason.status, 400)
+  const [stillPublished] = await sql`SELECT status FROM showtimes WHERE id = ${showtime.adminCancel}`
+  assert.equal(stillPublished.status, 'published')
+
+  const cancelledShowtime = await adminCancelShowtime(showtime.adminCancel, adminReason, cookie)
+  assert.equal(cancelledShowtime.status, 200, await cancelledShowtime.clone().text())
+  const adminBody = (await cancelledShowtime.json()) as Record<string, unknown>
+  assert.equal(adminBody.id, showtime.adminCancel)
+  assert.equal(adminBody.status, 'cancelled')
+  assert.equal(adminBody.cancelledByUserId, actorId)
+  assert.equal(adminBody.cancellationReason, adminReason)
+  assert.ok(adminBody.cancelledAt)
+  assert.equal(Object.keys(adminBody).length, 5)
+
+  const [storedShowtimeRow] = await sql`
+    SELECT status, cancelled_at, cancelled_by_user_id, cancellation_reason
+    FROM showtimes WHERE id = ${showtime.adminCancel}
+  `
+  assert.equal(storedShowtimeRow.status, 'cancelled')
+  assert.equal(storedShowtimeRow.cancelled_by_user_id, actorId)
+  assert.equal(storedShowtimeRow.cancellation_reason, adminReason)
+  const [storedAdminBooking] = await sql`
+    SELECT status, cancelled_at, cancelled_by_user_id, cancellation_reason, idempotency_response
+    FROM bookings WHERE id = ${adminBooking.body.id}
+  `
+  assert.equal(storedAdminBooking.status, 'cancelled')
+  assert.equal(storedAdminBooking.cancelled_by_user_id, actorId)
+  assert.equal(storedAdminBooking.cancellation_reason, adminReason)
+  assert.equal(
+    new Date(storedAdminBooking.cancelled_at).getTime(),
+    new Date(storedShowtimeRow.cancelled_at).getTime(),
+  )
+  assert.ok(storedAdminBooking.idempotency_response, 'the frozen booking history was not preserved')
+  assert.deepEqual(await counts(showtime.adminCancel), { bookings: 1, claims: 0 })
+  const cancelledPublicRead = await app.request(`/showtimes/${showtime.adminCancel}`)
+  assert.equal(cancelledPublicRead.status, 404, 'a cancelled showtime is still publicly readable')
+  assert.equal(guestMails(adminGuestEmail), mailsBeforeAdminCancel, 'the cancellation sent email')
+
+  // A lost response can be retried with a different reason without rewriting.
+  const repeatedShowtime = await adminCancelShowtime(
+    showtime.adminCancel,
+    'A different reason',
+    cookie,
+  )
+  assert.equal(repeatedShowtime.status, 200)
+  const repeatedShowtimeBody = await repeatedShowtime.json()
+  assert.deepEqual(repeatedShowtimeBody, adminBody)
+  const [afterRepeatShowtime] = await sql`
+    SELECT cancelled_at, cancellation_reason FROM showtimes WHERE id = ${showtime.adminCancel}
+  `
+  assert.equal(afterRepeatShowtime.cancellation_reason, adminReason)
+  assert.equal(
+    new Date(afterRepeatShowtime.cancelled_at).getTime(),
+    new Date(storedShowtimeRow.cancelled_at).getTime(),
+  )
+
+  // New bookings are refused with the generic public denial, with no write.
+  const blockedConfirm = await confirm(
+    {
+      showtimeId: showtime.adminCancel,
+      seatIds: [seats.b2],
+      customerEmail: 'b54-blocked@example.com',
+      quotedUnitPricePiastres: 2500,
+    },
+    randomUUID(),
+    '203.0.113.46',
+  )
+  assert.equal(blockedConfirm.status, 404)
+  assert.deepEqual(blockedConfirm.body, { error: 'showtime_not_found' })
+  assert.deepEqual(await counts(showtime.adminCancel), { bookings: 1, claims: 0 })
+  assert.equal(guestMails('b54-blocked@example.com'), 0)
+
+  // A fresh key is denied, but the original key still replays the frozen 201:
+  // D4 replay is unchanged by a later cancellation, and sends no second email.
+  const replayAfterCancel = await confirm(adminPayload, adminKey, '203.0.113.48')
+  assert.equal(replayAfterCancel.status, 201)
+  assert.equal(JSON.stringify(replayAfterCancel.body), JSON.stringify(adminBooking.body))
+  assert.equal(guestMails(adminGuestEmail), mailsBeforeAdminCancel)
+
+  // The invariant also survives a caller that bypasses the route: Postgres
+  // refuses a booking insert for a cancelled showtime.
+  const directId = 'd4d4d4d4-d4d4-4d4d-8d4d-d4d4d4d4d4d4'
+  let triggerCode: string | null = null
+  let triggerMarker = ''
+  let insertedDirectly = false
+  try {
+    await sql`
+      INSERT INTO bookings (id, customer_name, customer_email, starts_at, reference, showtime_id)
+      VALUES (
+        ${directId}, 'b54-direct@example.com', 'b54-direct@example.com',
+        ${startsAt[showtime.adminCancel]}, ${`bkg_${'d'.repeat(32)}`}, ${showtime.adminCancel}
+      )
+    `
+    insertedDirectly = true
+  } catch (error) {
+    const raised = error as { code?: string; constraint?: string; message?: string }
+    triggerCode = raised.code ?? null
+    triggerMarker = `${raised.constraint ?? ''} ${raised.message ?? ''}`
+  }
+  assert.equal(insertedDirectly, false, 'the trigger allowed a booking for a cancelled showtime')
+  assert.equal(triggerCode, 'P0001')
+  assert.ok(triggerMarker.includes('showtimes_booking_requires_published'), triggerMarker)
+
+  // Only upcoming showtimes can be cancelled; the start instant is too late.
+  const startedShowtime = await adminCancelShowtime(showtime.adminCancelPast, adminReason, cookie)
+  assert.equal(startedShowtime.status, 409)
+  assert.deepEqual(await startedShowtime.json(), { error: 'showtime_started' })
+  const [pastShowtimeStored] = await sql`
+    SELECT status, cancelled_at FROM showtimes WHERE id = ${showtime.adminCancelPast}
+  `
+  assert.equal(pastShowtimeStored.status, 'published')
+  assert.equal(pastShowtimeStored.cancelled_at, null)
+
+  // A confirmation racing the cancellation cannot leave an active booking:
+  // whichever write wins, the final state has no confirmed booking or claim.
+  const [raceConfirm, raceCancel] = await Promise.all([
+    confirm(
+      {
+        showtimeId: showtime.adminCancelRace,
+        seatIds: [seats.b1],
+        customerEmail: 'b54-race@example.com',
+        quotedUnitPricePiastres: 2500,
+      },
+      randomUUID(),
+      '203.0.113.47',
+    ),
+    adminCancelShowtime(showtime.adminCancelRace, adminReason, cookie),
+  ])
+  assert.ok([201, 404].includes(raceConfirm.status), JSON.stringify(raceConfirm.body))
+  assert.equal(raceCancel.status, 200, await raceCancel.clone().text())
+  const [raceShowtimeRow] = await sql`
+    SELECT status FROM showtimes WHERE id = ${showtime.adminCancelRace}
+  `
+  assert.equal(raceShowtimeRow.status, 'cancelled')
+  const [activeForCancelled] = await sql`
+    SELECT count(*)::int AS n FROM bookings
+    WHERE showtime_id = ${showtime.adminCancelRace} AND status = 'confirmed'
+  `
+  assert.equal(Number(activeForCancelled.n), 0, 'a racing confirmation left an active booking')
+  assert.deepEqual(await counts(showtime.adminCancelRace), {
+    bookings: raceConfirm.status === 201 ? 1 : 0,
+    claims: 0,
+  })
+
+  // Two admins with different reasons race on one showtime. The status CAS
+  // lets one win; both callers report its stored outcome byte-identically.
+  const { cookie: secondAdminCookie, actorId: secondAdminId } = await ensureSecondAdmin()
+  const [adminRaceA, adminRaceB] = await Promise.all([
+    adminCancelShowtime(showtime.adminCancelAdmins, 'First admin reason', cookie),
+    adminCancelShowtime(showtime.adminCancelAdmins, 'Second admin reason', secondAdminCookie),
+  ])
+  assert.equal(adminRaceA.status, 200, await adminRaceA.clone().text())
+  assert.equal(adminRaceB.status, 200, await adminRaceB.clone().text())
+  const adminRaceBodyA = await adminRaceA.json()
+  assert.deepEqual(await adminRaceB.json(), adminRaceBodyA)
+  const [adminRaceStored] = await sql`
+    SELECT status, cancelled_by_user_id, cancellation_reason, cancelled_at
+    FROM showtimes WHERE id = ${showtime.adminCancelAdmins}
+  `
+  assert.equal(adminRaceStored.status, 'cancelled')
+  assert.ok(['First admin reason', 'Second admin reason'].includes(adminRaceStored.cancellation_reason))
+  assert.equal(
+    adminRaceStored.cancelled_by_user_id,
+    adminRaceStored.cancellation_reason === 'First admin reason' ? actorId : secondAdminId,
+    'the losing admin overwrote the winner actor',
+  )
+  assert.equal(adminRaceBodyA.cancelledByUserId, adminRaceStored.cancelled_by_user_id)
+  assert.equal(adminRaceBodyA.cancellationReason, adminRaceStored.cancellation_reason)
+  assert.equal(
+    new Date(adminRaceBodyA.cancelledAt).getTime(),
+    new Date(adminRaceStored.cancelled_at).getTime(),
+  )
+
+  results.adminShowtimeCancellation = {
+    anonymousStatus: anonCancelShowtime.status,
+    operationsStatus: opsCancelShowtime.status,
+    blankReasonStatus: blankShowtimeReason.status,
+    status: cancelledShowtime.status,
+    responseFieldCount: Object.keys(adminBody).length,
+    storedActorMatchesAdmin: storedShowtimeRow.cancelled_by_user_id === actorId,
+    storedReason: storedShowtimeRow.cancellation_reason,
+    bookingCancelledWithSameActorAndInstant: true,
+    bookingHistoryPreserved: Boolean(storedAdminBooking.idempotency_response),
+    claimsAfterCancel: 0,
+    publicReadStatus: cancelledPublicRead.status,
+    repeatedBodyIdentical: JSON.stringify(repeatedShowtimeBody) === JSON.stringify(adminBody),
+    blockedConfirmStatus: blockedConfirm.status,
+    replayAfterCancelStatus: replayAfterCancel.status,
+    replayAfterCancelIdentical:
+      JSON.stringify(replayAfterCancel.body) === JSON.stringify(adminBooking.body),
+    competingAdminStatuses: [adminRaceA.status, adminRaceB.status],
+    competingAdminStoredReason: adminRaceStored.cancellation_reason,
+    competingAdminActorMatchesWinner: true,
+    triggerCode,
+    triggerMarkerPresent: triggerMarker.includes('showtimes_booking_requires_published'),
+    startedStatus: startedShowtime.status,
+    startedStoredStatus: pastShowtimeStored.status,
+    raceConfirmStatus: raceConfirm.status,
+    raceCancelStatus: raceCancel.status,
+    raceActiveBookings: Number(activeForCancelled.n),
+  }
 } finally {
   await cleanup()
   clearCapturedMessages()
@@ -804,19 +1082,30 @@ const prototypeAfter = await sql`
 `
 assert.deepEqual(prototypeAfter, prototypeBefore, 'prototype rows changed during the rehearsal')
 
-// B5.3 migration 0010 must exist on the isolated database before the staff
-// writes above can be trusted. No credential is printed here either.
+// B5.3 migration 0010 and B5.4 migrations 0011/0012 must exist on the isolated
+// database before the cancellation writes above can be trusted. No credential
+// is printed here either.
 const migrationColumns = await sql`
-  SELECT column_name FROM information_schema.columns
-  WHERE table_name = 'bookings' AND column_name IN ('cancelled_by_user_id', 'cancellation_reason')
+  SELECT table_name, column_name FROM information_schema.columns
+  WHERE
+    (table_name = 'bookings' AND column_name IN ('cancelled_by_user_id', 'cancellation_reason'))
+    OR (table_name = 'showtimes' AND column_name IN ('cancelled_at', 'cancelled_by_user_id', 'cancellation_reason'))
 `
-assert.equal(migrationColumns.length, 2, 'migration 0010 columns are missing')
+assert.equal(migrationColumns.length, 5, 'cancellation columns from 0010/0011 are missing')
+const triggers = await sql`
+  SELECT trigger_name FROM information_schema.triggers
+  WHERE event_object_table = 'bookings' AND trigger_name = 'bookings_require_published_showtime'
+`
+assert.equal(triggers.length, 1, 'migration 0012 booking trigger is missing')
 
 console.log(
   JSON.stringify(
     {
       targetDatabase: 'booking_system_test',
-      migrationColumns: migrationColumns.map((row) => String(row.column_name)).sort(),
+      migrationColumns: migrationColumns
+        .map((row) => `${row.table_name}.${row.column_name}`)
+        .sort(),
+      triggers: triggers.map((row) => String(row.trigger_name)),
       results,
       prototypeRows: { before: prototypeBefore, after: prototypeAfter },
       fixtureRemoved: true,

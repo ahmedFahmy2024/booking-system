@@ -6,6 +6,7 @@ import {
   isBookingClosed,
   isGuestCancellationClosed,
   isSeatAvailable,
+  isShowtimeCancellationClosed,
   isStaffCancellationClosed,
   occupancyOf,
   schedulesOverlap,
@@ -116,6 +117,12 @@ describe('booking window and seat availability', () => {
     const insideGuestWindow = new Date(startsAt.getTime() - 60 * 60_000)
     expect(isGuestCancellationClosed(startsAt, insideGuestWindow)).toBe(true)
     expect(isStaffCancellationClosed(startsAt, insideGuestWindow)).toBe(false)
+  })
+
+  it('closes admin showtime cancellation at the exact showtime start', () => {
+    expect(isShowtimeCancellationClosed(startsAt, new Date(startsAt.getTime() - 1))).toBe(false)
+    expect(isShowtimeCancellationClosed(startsAt, startsAt)).toBe(true)
+    expect(isShowtimeCancellationClosed(startsAt, new Date(startsAt.getTime() + 1))).toBe(true)
   })
 
   it('derives availability from the out-of-service flag and the claim set', () => {

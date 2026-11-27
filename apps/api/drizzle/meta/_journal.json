@@ -78,6 +78,20 @@
       "when": 1795787361494,
       "tag": "0010_colorful_brother_voodoo",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795788654370,
+      "tag": "0011_curved_bloodstorm",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795788668580,
+      "tag": "0012_showtime_booking_status",
+      "breakpoints": true
     }
   ]
 }

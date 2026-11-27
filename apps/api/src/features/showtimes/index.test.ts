@@ -1,5 +1,5 @@
 import { PgDialect } from 'drizzle-orm/pg-core'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   select: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
+  delete: vi.fn(),
+  batch: vi.fn(),
 }))
 
 vi.mock('../../auth.js', () => ({
@@ -20,7 +22,13 @@ vi.mock('../../auth.js', () => ({
 vi.mock('../../db/index.js', () => ({
   getDb: () => {
     mocks.getDb()
-    return { select: mocks.select, insert: mocks.insert, update: mocks.update }
+    return {
+      select: mocks.select,
+      insert: mocks.insert,
+      update: mocks.update,
+      delete: mocks.delete,
+      batch: mocks.batch,
+    }
   },
 }))
 
@@ -135,6 +143,7 @@ const showtimeRequests = () => [
   request('/admin/showtimes', 'POST', createPayload),
   request(`/admin/showtimes/${SHOWTIME_ID}/publish`, 'POST', { pricePiastres: 2500 }),
   request(`/admin/showtimes/${SHOWTIME_ID}/price`, 'PATCH', { pricePiastres: 3000 }),
+  request(`/admin/showtimes/${SHOWTIME_ID}/cancel`, 'POST', { reason: 'Hall maintenance' }),
 ]
 
 /** Queue the four reads a publish performs: showtime, film, auditorium, seats. */
@@ -167,6 +176,8 @@ beforeEach(() => {
   mocks.select.mockImplementation(() => chain([]))
   mocks.insert.mockImplementation(() => chain([]))
   mocks.update.mockImplementation(() => chain([]))
+  mocks.delete.mockImplementation(() => chain([]))
+  mocks.batch.mockResolvedValue([])
 })
 
 describe('admin showtime routes — access control', () => {
@@ -503,5 +514,169 @@ describe('admin showtime routes — price changes', () => {
 
     expect(res.status).toBe(400)
     expect(mocks.getDb).not.toHaveBeenCalled()
+  })
+})
+
+describe('admin showtime routes — cancellation', () => {
+  const reason = 'Projector replacement'
+  const futureStart = new Date('2030-07-15T16:00:00.000Z')
+  const futureRow = () =>
+    showtimeRow({
+      status: 'published',
+      startsAt: futureStart,
+      occupancyEndsAt: new Date('2030-07-15T18:15:00.000Z'),
+    })
+  const cancelledRow = () => ({
+    ...futureRow(),
+    status: 'cancelled',
+    cancelledAt: new Date('2030-01-01T00:00:00.000Z'),
+    cancelledByUserId: 'admin-9',
+    cancellationReason: 'An earlier reason',
+  })
+  const cancel = (id = SHOWTIME_ID, body: unknown = { reason }) =>
+    request(`/admin/showtimes/${id}/cancel`, 'POST', body)
+
+  beforeEach(() => {
+    mocks.getSession.mockResolvedValue(adminSession)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('cancels an upcoming showtime and every confirmed booking in one batch', async () => {
+    mocks.select.mockImplementationOnce(() => chain([futureRow()]))
+    const showtimeUpdate = chain([{ id: SHOWTIME_ID }])
+    const bookingUpdate = chain([])
+    const claimDelete = chain([])
+    mocks.update
+      .mockImplementationOnce(() => showtimeUpdate)
+      .mockImplementationOnce(() => bookingUpdate)
+    mocks.delete.mockImplementationOnce(() => claimDelete)
+    mocks.batch.mockResolvedValueOnce([[{ id: SHOWTIME_ID }], [], []])
+
+    const res = await cancel()
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body).toEqual({
+      id: SHOWTIME_ID,
+      status: 'cancelled',
+      cancelledAt: expect.any(String),
+      cancelledByUserId: 'admin-1',
+      cancellationReason: reason,
+    })
+    expect(mocks.batch).toHaveBeenCalledTimes(1)
+    expect(mocks.batch.mock.calls[0][0]).toHaveLength(3)
+
+    const expectedSet = {
+      status: 'cancelled',
+      cancelledAt: expect.any(Date),
+      cancelledByUserId: 'admin-1',
+      cancellationReason: reason,
+    }
+    expect(showtimeUpdate.calls.set[0][0]).toEqual(expectedSet)
+    expect(bookingUpdate.calls.set[0][0]).toEqual(expectedSet)
+
+    const dialect = new PgDialect()
+    const showtimeGuard = dialect.sqlToQuery(showtimeUpdate.calls.where[0][0] as never)
+    expect(showtimeGuard.sql).toContain('"showtimes"."status"')
+    expect(showtimeGuard.params).toContain('draft')
+    expect(showtimeGuard.params).toContain('published')
+    const bookingScope = dialect.sqlToQuery(bookingUpdate.calls.where[0][0] as never)
+    expect(bookingScope.sql).toContain('"bookings"."showtime_id"')
+    expect(bookingScope.params).toContain(SHOWTIME_ID)
+    const claimScope = dialect.sqlToQuery(claimDelete.calls.where[0][0] as never)
+    expect(claimScope.sql).toContain('"booking_seats"."showtime_id"')
+    expect(claimScope.params).toContain(SHOWTIME_ID)
+  })
+
+  it('reports the stored outcome byte-identically when the reason changes on retry', async () => {
+    mocks.select.mockImplementation(() => chain([cancelledRow()]))
+
+    const first = await cancel()
+    const second = await cancel(SHOWTIME_ID, { reason: 'A different reason' })
+
+    expect(first.status).toBe(200)
+    expect(second.status).toBe(200)
+    expect(await second.json()).toEqual(await first.clone().json())
+    const body = (await first.json()) as Record<string, unknown>
+    expect(body.cancelledByUserId).toBe('admin-9')
+    expect(body.cancellationReason).toBe('An earlier reason')
+    expect(mocks.batch).not.toHaveBeenCalled()
+  })
+
+  it('refuses a showtime that has already started without writing', async () => {
+    mocks.select.mockImplementation(() => chain([showtimeRow({ status: 'published' })]))
+
+    const res = await cancel()
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual({ error: 'showtime_started' })
+    expect(mocks.batch).not.toHaveBeenCalled()
+  })
+
+  it('accepts one millisecond before the start and refuses the exact start instant', async () => {
+    vi.useFakeTimers()
+    const start = new Date('2030-01-01T10:00:00.000Z')
+    mocks.select.mockImplementation(() =>
+      chain([
+        showtimeRow({
+          status: 'published',
+          startsAt: start,
+          occupancyEndsAt: new Date(start.getTime() + 135 * 60_000),
+        }),
+      ]),
+    )
+    mocks.batch.mockResolvedValue([[{ id: SHOWTIME_ID }], [], []])
+
+    vi.setSystemTime(new Date(start.getTime() - 1))
+    const before = await cancel()
+    expect(before.status).toBe(200)
+
+    vi.setSystemTime(start)
+    const exact = await cancel()
+    expect(exact.status).toBe(409)
+    expect(await exact.json()).toEqual({ error: 'showtime_started' })
+    expect(mocks.batch).toHaveBeenCalledTimes(1)
+  })
+
+  it('validates the id and reason before any database work and retries cleanly', async () => {
+    for (const body of [{}, { reason: '   ' }, { reason: 'x'.repeat(501) }]) {
+      const res = await cancel(SHOWTIME_ID, body)
+      expect(res.status).toBe(400)
+    }
+    const badId = await request('/admin/showtimes/not-a-uuid/cancel', 'POST', { reason })
+    expect(badId.status).toBe(400)
+    expect(mocks.getDb).not.toHaveBeenCalled()
+
+    const missing = await cancel()
+    expect(missing.status).toBe(404)
+    expect(await missing.json()).toEqual({ error: 'showtime_not_found' })
+
+    mocks.select.mockImplementationOnce(() => chain([futureRow()]))
+    mocks.batch.mockResolvedValueOnce([[{ id: SHOWTIME_ID }], [], []])
+    const retried = await cancel()
+    expect(retried.status).toBe(200)
+    expect(mocks.batch).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports the winner outcome when a competing cancellation won the status swap', async () => {
+    mocks.select
+      .mockImplementationOnce(() => chain([futureRow()]))
+      .mockImplementationOnce(() => chain([cancelledRow()]))
+    mocks.batch.mockResolvedValueOnce([[], [], []])
+
+    const res = await cancel()
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body).toMatchObject({
+      id: SHOWTIME_ID,
+      status: 'cancelled',
+      cancelledByUserId: 'admin-9',
+      cancellationReason: 'An earlier reason',
+    })
+    expect(mocks.batch).toHaveBeenCalledTimes(1)
   })
 })

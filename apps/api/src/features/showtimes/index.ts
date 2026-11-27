@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator'
-import { and, asc, eq, ne } from 'drizzle-orm'
+import { and, asc, eq, inArray, ne } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import type { AuthEnv } from '../../auth/middleware.js'
@@ -10,9 +10,11 @@ import {
   seats,
   showtimes,
   type AuditoriumLayoutSnapshot,
+  type ShowtimeStatus,
 } from '../../db/cinema-schema.js'
 import { getDb } from '../../db/index.js'
-import { cairoWallClockToInstant, occupancyOf } from './schedule.js'
+import { bookingSeats, bookings } from '../../db/schema.js'
+import { cairoWallClockToInstant, isShowtimeCancellationClosed, occupancyOf } from './schedule.js'
 
 /**
  * Admin catalogue scheduling (D3). Every route is guarded by `requireAdmin`:
@@ -41,6 +43,11 @@ export const publishShowtimeSchema = z.object({
 })
 
 export const priceShowtimeSchema = publishShowtimeSchema
+
+/** D5/B5.4: an admin cancels an upcoming showtime with a recorded reason. */
+export const cancelShowtimeSchema = z.object({
+  reason: z.string().trim().min(1).max(500),
+})
 
 const parseCairoWallClock = (value: string): Date | null => {
   const [date, time] = value.split('T')
@@ -231,5 +238,121 @@ showtimeAdminRoutes.patch(
       .limit(1)
     if (!existing) return c.json({ error: 'showtime_not_found' }, 404)
     return c.json({ error: 'invalid_status_transition' }, 409)
+  },
+)
+
+/**
+ * D5/B5.4: the admin cancels an upcoming showtime. The showtime status change,
+ * the cancellation of every active booking and the release of every claim are
+ * written in one Neon transaction, so a cancelled showtime can never keep an
+ * active booking or held seats. Showtimes and bookings are never deleted: their
+ * frozen history (including recorded payments) stays intact for staff and B8.
+ *
+ * There is deliberately no time or auditorium edit route: after bookings exist
+ * the admin cancels the original showtime and publishes a new one instead.
+ */
+interface ShowtimeCancellationRow {
+  id: string
+  status: ShowtimeStatus
+  startsAt: Date
+  cancelledAt: Date | null
+  cancelledByUserId: string | null
+  cancellationReason: string | null
+}
+
+async function readShowtimeCancellation(id: string): Promise<ShowtimeCancellationRow | undefined> {
+  const [row] = await getDb()
+    .select({
+      id: showtimes.id,
+      status: showtimes.status,
+      startsAt: showtimes.startsAt,
+      cancelledAt: showtimes.cancelledAt,
+      cancelledByUserId: showtimes.cancelledByUserId,
+      cancellationReason: showtimes.cancellationReason,
+    })
+    .from(showtimes)
+    .where(eq(showtimes.id, id))
+    .limit(1)
+  return row as ShowtimeCancellationRow | undefined
+}
+
+/** Fixed field set: the stored showtime outcome with its actor and reason. */
+function showtimeCancelledResponse(row: ShowtimeCancellationRow) {
+  return {
+    id: row.id,
+    status: 'cancelled' as const,
+    cancelledAt: row.cancelledAt ? row.cancelledAt.toISOString() : null,
+    cancelledByUserId: row.cancelledByUserId,
+    cancellationReason: row.cancellationReason,
+  }
+}
+
+showtimeAdminRoutes.post(
+  '/:id/cancel',
+  requireAdmin,
+  zValidator('param', idSchema),
+  zValidator('json', cancelShowtimeSchema),
+  async (c) => {
+    const { id } = c.req.valid('param')
+    const { reason } = c.req.valid('json')
+    const actorId = c.get('session')!.user.id
+
+    const row = await readShowtimeCancellation(id)
+    if (!row) return c.json({ error: 'showtime_not_found' }, 404)
+
+    // A lost response can be retried safely: report the stored outcome without
+    // a second write or a second actor/reason replacing the first one.
+    if (row.status === 'cancelled') return c.json(showtimeCancelledResponse(row))
+
+    // Take the instant after the read and use that same instant in the write so
+    // a slow read cannot admit a cancellation that commits after the start.
+    const now = new Date()
+    if (isShowtimeCancellationClosed(row.startsAt, now)) {
+      return c.json({ error: 'showtime_started' }, 409)
+    }
+
+    const db = getDb()
+    const [updated] = await db.batch([
+      db
+        .update(showtimes)
+        .set({
+          status: 'cancelled',
+          cancelledAt: now,
+          cancelledByUserId: actorId,
+          cancellationReason: reason,
+        })
+        // Compare and swap: a competing cancellation wins once. Draft and
+        // published showtimes are both upcoming and may be cancelled.
+        .where(and(eq(showtimes.id, id), inArray(showtimes.status, ['draft', 'published'])))
+        .returning({ id: showtimes.id }),
+      // Only active bookings change; cancelled history keeps its original
+      // actor, reason and timestamp. The frozen confirmation is not touched.
+      db
+        .update(bookings)
+        .set({
+          status: 'cancelled',
+          cancelledAt: now,
+          cancelledByUserId: actorId,
+          cancellationReason: reason,
+        })
+        .where(and(eq(bookings.showtimeId, id), eq(bookings.status, 'confirmed'))),
+      db.delete(bookingSeats).where(eq(bookingSeats.showtimeId, id)),
+    ])
+
+    if (!updated || updated.length === 0) {
+      const winner = await readShowtimeCancellation(id)
+      if (!winner) return c.json({ error: 'showtime_not_found' }, 404)
+      return c.json(showtimeCancelledResponse(winner))
+    }
+
+    return c.json(
+      showtimeCancelledResponse({
+        ...row,
+        status: 'cancelled',
+        cancelledAt: now,
+        cancelledByUserId: actorId,
+        cancellationReason: reason,
+      }),
+    )
   },
 )

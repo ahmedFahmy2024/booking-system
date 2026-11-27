@@ -11,7 +11,7 @@ Status follows the [build plan](build-plan.md). Update this file when a slice is
 | B2 | Complete | B2.1 defined the [permission matrix](permission-matrix.md), B2.2 added Better Auth staff sign-in, sessions, invitations, and password reset, B2.3 enforced default-deny in the Hono API including the staff booking list, and B2.4 added scoped private guest-link credentials, read-only guest access, staff resend and rate limiting. The prototype list no longer exposes contact details without an access check; the guest-facing page and cancellation remain in B5. |
 | B3 | Complete | Arabic localization and RTL are wired into the current web shell, and admins can manage films and seat maps (B3.2) plus create, price and publish showtimes with an overlap-safe snapshot (B3.3). The public Arabic catalogue, showtime list and keyboard-operable seat map (B3.4) are live; B3.5 added a repeatable isolated seed and exercised the publish and browse paths against it, including a showtime with no available seats. |
 | B4 | Complete | B4.1 added seat selection, the EGP unit price and total, guest email collection, the six-seat limit and the shared checkout request schema. B4.2 added the confirmation write, atomic seat claims and server-side validation. B4.3 added detailed seat/price conflicts, seat-map refresh, pruned selections, explicit revised-price acceptance and localized error codes. B4.4 persisted the accepted quoted price and reference and added a confirmation screen with the film, showtime, auditorium, frozen seat labels, reference, total and venue payment instructions. B4.5 added a stable confirmation key, exact outcome replay and a payload-mismatch conflict. B4.6 verified the real browser journey and the claim/idempotency invariants against the isolated database. |
-| B5 | In progress | B5.1 added the read-only guest booking-details page behind the private link and verified that a reference alone reveals no contact details. B5.2 added guest cancellation with an atomic seat release, the two-hour closing instant and an idempotent repeat. B5.3 added staff cancellation with a required reason, recorded actor, showtime-start cutoff and race-safe compare-and-swap. B5.4–B5.5 (showtime cancellation and the confirmation race) remain. |
+| B5 | Complete | B5.1 added the read-only guest booking-details page behind the private link and verified that a reference alone reveals no contact details. B5.2 added guest cancellation with an atomic seat release, the two-hour closing instant and an idempotent repeat. B5.3 added staff cancellation with a required reason, recorded actor, showtime-start cutoff and race-safe compare-and-swap. B5.4 added admin showtime cancellation in one transaction with preserved booking history, a booking trigger that arbitrates the confirmation race, and an idempotent repeat; B5.5's race verification was completed with it (guest notification delivery remains B7.2). |
 | B6 | Planned | Show occupancy and staff booking management, including an activity record. |
 | B7 | Planned | Confirmation and change communication through agreed channels. |
 | B8 | Planned | End-to-end release verification, deployment, monitoring, and recovery. |
@@ -40,6 +40,7 @@ Status follows the [build plan](build-plan.md). Update this file when a slice is
 | Guest booking details | `npm --prefix apps/api run verify`, `npm --prefix apps/web run verify`, `npm --prefix apps/web run test:ui`, `npm --prefix apps/web run test:e2e`, `npm --prefix apps/api run verify:booking-live`, React Doctor, `git diff --check`, independent risk review | B5.1 passed on 2026-11-27: 135 API tests in 12 files and 92 web tests in 19 files; 27/27 Chromium UI scenarios and 1/1 real Playwright journey; live guest detail 200 with no reflected token and reference-only 404. No migration, schema change, production database or commit. Full detail in the B5.1 section below. |
 | Guest cancellation | same gates plus migration `0009` applied to the isolated database | B5.2 passed on 2026-11-27: 143 API tests in 12 files and 97 web tests in 19 files; 31/31 Chromium UI scenarios and 1/1 real Playwright journey; live cancellation 200, status cancelled, zero remaining claims, seat available again, identical repeated body, cutoff 409, reference-only 404; prototype rows unchanged. Full detail in the B5.2 section below. |
 | Staff cancellation | `npm --prefix apps/api run verify`, `npm --prefix apps/web run verify`, `npm run db:generate`, `npx drizzle-kit migrate` and `npx tsx --env-file=.env.test scripts/verify-booking-live.ts` on the isolated `booking_system_test` database | B5.3 passed on 2026-11-27: 156 API tests in 12 files and 97 web tests in 20 files; migration `0010` applied only to the isolated database; live staff cancellation 200 with stored actor/reason/timestamp, zero claims, seat available again, identical repeat with a different reason, `showtime_started` 409 for a started showtime, and two racing staff writes with one stored reason. No browser check applies (staff booking UI is B6.1). Full detail in the B5.3 section below. |
+| Admin showtime cancellation | `npm --prefix apps/api run verify`, `npm --prefix apps/web run verify`, `npm run db:generate`, `npx drizzle-kit migrate`, `npm --prefix apps/web run test:e2e -- --trace on` and `npm --prefix apps/api run verify:booking-live` on the isolated `booking_system_test` database | B5.4/B5.5 passed on 2026-11-27: 166 API tests in 12 files and 97 web tests in 20 files; migrations `0011`/`0012` applied only to the isolated database; live admin cancellation 200 with stored actor/reason/instant, booking cancelled with the same actor and instant, frozen booking history preserved, zero claims, public read 404, identical repeat, blocked confirm 404, same-key replay 201, trigger SQLSTATE `P0001`, started showtime 409, no active booking after a racing confirmation, and a two-admin race with one stored actor/reason. Playwright 1/1 against the real Hono API. Full detail in the B5.4 section below. |
 
 ## B2.3 — API permission enforcement (2026-11-23)
 
@@ -665,6 +666,55 @@ npx tsx --env-file=.env.test scripts/verify-booking-live.ts   # JSON captured be
 
 No browser or React Doctor check was applicable: no web source changed and the staff booking list/detail screen that will expose this action is B6.1. Migration `0010` was applied only to the isolated `booking_system_test` database; a code-only revert is safe before any cancellation has been accepted, while an accepted cancellation must be restored with its claims rebuilt or rebooked.
 
+## B5.4 — Admin showtime cancellation and the confirmation race (2026-11-27)
+
+Acceptance criteria were written to `.booking-work/handoffs/b5-4-showtime-cancellation.md` before editing. Each is starting state → request/action → expected result → evidence, with a failure/retry case. Base `05f057a`; the working tree was clean before this task.
+
+| ID | Starting state → action → expected result | Evidence |
+| --- | --- | --- |
+| AC1 | No session / operations / banned admin / unknown role → `POST /admin/showtimes/:id/cancel` → 401 / 403 / 403 / 403 before any DB read; active admin succeeds; corrected retry after admin sign-in succeeds. | API Vitest access-control cases for all five admin routes, asserting `getDb()` not called on denial. |
+| AC2 | Published upcoming showtime with a confirmed booking and claim, non-blank reason → one `db.batch` cancels the showtime, cancels every confirmed booking with the same actor/reason/instant (frozen confirmation preserved), deletes every claim; seat map no longer public; no email; fixed five-field response. | API Vitest batch-composition case; `verify-booking-live` `adminShowtimeCancellation`. |
+| AC3 | Already-cancelled showtime → repeat with a different reason → byte-identical 200 with the original actor/reason/instant, no second write. | API Vitest idempotent-repeat case; live repeated call. |
+| AC4 | Showtime at/after the start instant → `409 { error: 'showtime_started' }` with no write; one millisecond before start → 200. The boundary is the stored showtime instant. | `isShowtimeCancellationClosed` exact-boundary tests; API Vitest controlled-clock cases; live past-showtime fixture. |
+| AC5 | Non-UUID id, missing/blank/oversized reason → 400 before any DB read; unknown id → 404; corrected retry → 200. | API Vitest validation, 404 and retry cases. |
+| AC6 | Cancelled showtime → confirm and public reads → confirm `404 showtime_not_found` with no write or email; a confirmation racing cancellation cannot leave an active booking. Postgres arbitrates with a booking trigger that takes `FOR SHARE` on the showtime row and refuses a non-published showtime. | API Vitest `P0001` mapping cases (named constraint and message fallback); live `blockedConfirm`, direct-SQL trigger refusal and `raceActiveBookings: 0`. |
+| AC7 | Generated migration adds nullable showtime cancellation columns; a custom migration adds the trigger; prototype rows (`showtime_id IS NULL`) still insert; applied only to the isolated `booking_system_test` database with the pooled/unpooled guard. | `0011_curved_bloodstorm.sql`, `0012_showtime_booking_status.sql`, snapshots/journal, live `migrationColumns`/`triggers` and prototype counts. |
+| AC8 | Complete change → both verify gates, Playwright, live rehearsal, `git diff --check`, risk review → all green; no production database or commit; durable evidence under `.booking-work/evidence/b5-4/`. | Command outcomes, evidence files and review outcome below. |
+
+**Changed files:** `apps/api/src/db/cinema-schema.ts` (+ generated `drizzle/0011_curved_bloodstorm.sql` and custom `drizzle/0012_showtime_booking_status.sql` with snapshot/journal); `apps/api/src/features/showtimes/{index.ts,index.test.ts,schedule.ts,schedule.test.ts}`; `apps/api/src/features/bookings/confirmation.ts` and its test; `apps/api/scripts/verify-booking-live.ts`; the verification skill/map, build plan, this tracker, the handoff and `.booking-work/evidence/b5-4/`. No web source, dependency or existing response contract changed.
+
+**Verification (exact commands and outcomes, from the repository root):**
+
+```powershell
+npm --prefix apps/api run db:generate
+# generated 0011_curved_bloodstorm.sql; a repeat finds no schema changes
+# custom 0012_showtime_booking_status.sql + snapshot + journal entry added
+
+# from apps/api after loading .env.test with the target guard:
+npx drizzle-kit migrate
+# guard printed only "booking_system_test; unpooled: True"; migrations applied successfully
+
+npm --prefix apps/api run verify
+# lint clean; typecheck clean; 166 tests in 12 files passed (baseline 156); build clean
+npm --prefix apps/web run verify
+# three pre-existing advisory fast-refresh warnings; typecheck clean;
+# 97 tests in 20 files passed; Vite build clean
+$env:E2E_API_PORT = '3100'; $env:E2E_WEB_PORT = '5273'
+npm --prefix apps/web run test:e2e -- --trace on
+# 1/1 Chromium scenario passed against the real Hono API
+npm --prefix apps/api run seed:booking-e2e
+npm --prefix apps/api run verify:booking-live
+# all live assertions passed; JSON evidence captured
+git diff --check
+# exit 0; only the usual LF→CRLF normalization notices
+```
+
+**Evidence files:** `.booking-work/evidence/b5-4/` holds `live-rehearsal.json`, `playwright-run.log`, `playwright-trace.zip`, `seed.log` and `execution-log.md`. The live rehearsal used the isolated database and the in-process mail adapter without printing any credential; prototype rows stayed at 3 services / 15 bookings on both sides and the fixture was removed in `finally`. The Playwright run confirms the new trigger does not break the normal published-showtime checkout. No browser or React Doctor check applies to the cancellation write itself: there is no admin showtime screen yet, so no UI owns this action.
+
+**Race coverage:** the main fixture confirms first and then cancels, proving the cascade cancels the earlier booking and releases its claim; the race fixture let the cancellation win (`raceConfirmStatus: 404`, `raceActiveBookings: 0`); and a direct SQL insert bypassing the route was refused with SQLSTATE `P0001` and the named constraint. Two admins with different reasons also raced (`competingAdminStatuses: [200,200]`), with the stored actor matching the winning reason and both bodies byte-identical. After cancellation, a fresh confirmation key gets the generic 404 while the original key still replays its frozen 201 (`replayAfterCancelStatus: 201`), as D4 requires. Together these cover both orderings, the storage boundary and admin attribution. Guest notification delivery for a cancelled showtime is B7.2.
+
+**Risk review (independent reviewer, fresh context, base `05f057a`):** **no blocking issue.** The reviewer verified auth-before-DB, the one-transaction cascade, the trigger's `FOR SHARE` lock ordering, nullable-column backward compatibility, migration chain (`0011.prevId = 0010.id`, `0012.prevId = 0011.id`) and recovery. Four non-blocking findings were reported. Two were **fixed and the live gate re-run**: competing admins now race on a real fixture with distinct sessions and reasons (one stored actor/reason, byte-identical bodies), and a same-key replay after cancellation is asserted alongside the fresh-key 404. One evidence-quality residual remains documented: the application's `P0001` → 404 mapping is pinned by Vitest with realistic cause-chain shapes (including a wrapper that carries a code) and the live rehearsal proves the trigger raises, but no live request deterministically forces the confirm-after-read/cancel-before-write window. One informational residual remains: the start cutoff is evaluated at request time, matching the existing B5.3 pattern, rather than at commit time. No other blocking issue was found.
+
 ## Next action
 
-Start **B5.4** in the [booking retrieval and cancellation checklist](build-plan.md#b5--booking-retrieval-and-cancellation): add admin showtime cancellation with a reason, preserve booking history and block new bookings, and direct time/auditorium changes through cancellation plus a new showtime.
+Start **B6.1** in the [staff operations checklist](build-plan.md#b6--staff-operations): build the paginated staff booking list and detail view with reference search, film/showtime/status filters and an occupancy view, defaulting to upcoming showtimes. The B5.5 race verification is already covered above; guest notification delivery for a cancelled showtime belongs to B7.2.

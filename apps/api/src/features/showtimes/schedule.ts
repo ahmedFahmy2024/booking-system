@@ -172,6 +172,15 @@ export function isStaffCancellationClosed(startsAt: Date, now: Date = new Date()
   return now.getTime() >= startsAt.getTime()
 }
 
+/**
+ * D5/B5.4: an admin cancels an upcoming showtime only. Like staff booking
+ * cancellation, the start instant is itself already too late; there is no
+ * two-hour lead time for this operation.
+ */
+export function isShowtimeCancellationClosed(startsAt: Date, now: Date = new Date()): boolean {
+  return now.getTime() >= startsAt.getTime()
+}
+
 /** A claimed seat is unavailable; so is one the auditorium took out of service. */
 export function isSeatAvailable(
   seat: { id: string; outOfService: boolean },

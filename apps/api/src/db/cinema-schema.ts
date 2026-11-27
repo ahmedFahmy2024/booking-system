@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
+import { user } from './auth-schema.js'
 
 /** Immutable value set for the showtime lifecycle; kept in TypeScript, not pgEnum. */
 export const SHOWTIME_STATUSES = ['draft', 'published', 'cancelled'] as const
@@ -114,6 +115,16 @@ export const showtimes = pgTable(
     pricePiastres: integer('price_piastres').notNull().default(0),
     /** Written once on publish; NULL while the showtime is still a draft. */
     layoutSnapshot: jsonb('layout_snapshot').$type<AuditoriumLayoutSnapshot>(),
+    /**
+     * D5/B5.4: an admin cancellation changes status, never the showtime's
+     * history. Actor and reason are nullable so existing rows stay valid and a
+     * code-only revert before any cancellation leaves them untouched.
+     */
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    cancelledByUserId: text('cancelled_by_user_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    cancellationReason: text('cancellation_reason'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()

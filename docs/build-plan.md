@@ -81,6 +81,7 @@ D1–D8 were approved on 2026-11-22. Use them with the launch, booking, and oper
 - Keep booking status, arrival, and venue payment distinct. Start confirmed, unpaid, and not arrived. Record arrival and payment independently with timestamps and actor attribution. Staff can mark a confirmed booking as a no-show at or after start only when no arrival has been recorded.
 - Admins can cancel an upcoming showtime with a reason. In one operation, close bookings for that showtime and cancel its active bookings while preserving history and recorded payments. Staff handle any venue payment adjustments outside the website for this release. Cancellation requests and racing confirmations must leave consistent state.
 - B5.2 implementation note: a guest cancellation carries the private credential in an `X-Guest-Token` request header rather than the link's query string, so an access log, browser history or Referer never holds it. The read link keeps its existing query form for compatibility. Repeated cancellation is an idempotent success, so a lost response can be retried safely.
+- B5.4 implementation note: `POST /admin/showtimes/:id/cancel` closes the showtime, cancels every active booking with the same admin actor/reason/instant and releases every claim in one Neon transaction; repeated calls replays the stored outcome. A Postgres trigger takes `FOR SHARE` on the showtime row before any booking insert and refuses one whose showtime is no longer published, so a confirmation racing the cancellation cannot leave an active booking. There is no time or auditorium edit route: the admin cancels and publishes a new showtime. Guest notification delivery is B7.2.
 
 ### D6 — Email delivery
 
@@ -167,8 +168,8 @@ Applies [D2](#d2--guest-link-and-checkout-access) and [D5](#d5--cancellation-att
 - [x] **B5.1** Build the guest booking-details page and permitted actions behind the private link. Verify that the reference alone reveals no contact details. Verified 2026-11-27; evidence in `docs/progress-tracker.md#b51--guest-booking-details-2026-11-27`.
 - [x] **B5.2** Add guest cancellation before the two-hour cutoff. Cancel the whole booking and release all seats together. Verify the cutoff and a repeated cancellation. Verified 2026-11-27; evidence in `docs/progress-tracker.md#b52--guest-cancellation-2026-11-27`.
 - [x] **B5.3** Add staff cancellation on guest request before the showtime starts. Require and record the reason with the staff actor. Verified 2026-11-27; evidence in `docs/progress-tracker.md#b53--staff-cancellation-on-guest-request-2026-11-27`.
-- [ ] **B5.4** Add admin showtime cancellation, preserving booking history and blocking new bookings. For time or auditorium changes after bookings exist, direct the admin through cancellation and publishing a new showtime.
-- [ ] **B5.5** Verify that a confirmation racing with a showtime cancellation cannot leave an active booking for the cancelled showtime. Connect guest notification delivery in B7.
+- [x] **B5.4** Add admin showtime cancellation, preserving booking history and blocking new bookings. For time or auditorium changes after bookings exist, direct the admin through cancellation and publishing a new showtime. Verified 2026-11-27; evidence in `docs/progress-tracker.md#b54--admin-showtime-cancellation-and-the-confirmation-race-2026-11-27`.
+- [x] **B5.5** Verify that a confirmation racing with a showtime cancellation cannot leave an active booking for the cancelled showtime. The race verification was completed with B5.4 (both orderings plus the storage-boundary trigger); guest notification delivery remains [B7.2](#b7--communication). Evidence in `docs/progress-tracker.md#b54--admin-showtime-cancellation-and-the-confirmation-race-2026-11-27`.
 
 ### B6 — Staff operations
 

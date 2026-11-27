@@ -307,6 +307,45 @@ describe('POST /bookings/confirm — atomic cinema checkout', () => {
     expect(getCapturedMessages()).toHaveLength(0)
   })
 
+  it('reports the generic denial when an admin cancellation lands before the booking write', async () => {
+    const raised = new Error('showtime_not_published')
+    ;(raised as Error & { code: string }).code = 'P0001'
+    ;(raised as Error & { constraint: string }).constraint = 'showtimes_booking_requires_published'
+    mocks.batch.mockRejectedValueOnce(new Error('wrapped', { cause: raised }))
+
+    const res = await post()
+
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'showtime_not_found' })
+    expect(getCapturedMessages()).toHaveLength(0)
+  })
+
+  it('recognises the trigger through a wrapper that also carries a SQLSTATE', async () => {
+    const raised = new Error('showtime_not_published')
+    ;(raised as Error & { constraint: string }).constraint = 'showtimes_booking_requires_published'
+    const wrapper = new Error('wrapped', { cause: raised })
+    ;(wrapper as Error & { code: string }).code = 'P0001'
+    mocks.batch.mockRejectedValueOnce(wrapper)
+
+    const res = await post()
+
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'showtime_not_found' })
+    expect(getCapturedMessages()).toHaveLength(0)
+  })
+
+  it('recognises the trigger by its message when the driver exposes no constraint name', async () => {
+    const raised = new Error('showtime_not_published')
+    ;(raised as Error & { code: string }).code = 'P0001'
+    mocks.batch.mockRejectedValueOnce(raised)
+
+    const res = await post()
+
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'showtime_not_found' })
+    expect(getCapturedMessages()).toHaveLength(0)
+  })
+
   it('replays an identical retry that sees the winner’s claim after its replay read', async () => {
     // Both requests start together: the replay read misses the winner, then a
     // competing claim becomes visible before this request reads claims. The

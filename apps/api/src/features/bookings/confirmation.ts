@@ -27,6 +27,31 @@ import { sendGuestLink } from './guest-link.js'
 export const confirmationRoutes = new Hono<AuthEnv>()
 
 const IDEMPOTENCY_CONSTRAINT = 'bookings_idempotency_key_unique'
+/** B5.4: raised by the booking trigger when its showtime is no longer published. */
+const SHOWTIME_STATUS_TRIGGER = 'showtimes_booking_requires_published'
+
+/**
+ * A trigger violation is not a uniqueness conflict. Walk the whole cause chain
+ * so a wrapper that also carries a code cannot hide the driver's marker; use
+ * both the named constraint and the message because drivers expose either.
+ */
+function isUnpublishedShowtimeError(error: unknown): boolean {
+  let current: unknown = error
+  let hasTriggerCode = false
+  let hasTriggerMarker = false
+  while (current instanceof Error) {
+    const { code, constraint } = current as Error & { code?: unknown; constraint?: unknown }
+    if (code === 'P0001') hasTriggerCode = true
+    if (
+      constraint === SHOWTIME_STATUS_TRIGGER ||
+      current.message.includes('showtime_not_published')
+    ) {
+      hasTriggerMarker = true
+    }
+    current = current.cause
+  }
+  return hasTriggerCode && hasTriggerMarker
+}
 
 /**
  * Drizzle wraps the Neon driver error; walk the cause chain for the SQLSTATE
@@ -262,6 +287,12 @@ confirmationRoutes.post(
         ),
       ])
     } catch (error) {
+      if (isUnpublishedShowtimeError(error)) {
+        // A concurrent admin cancellation committed while this request was
+        // confirming. The trigger rolled the whole batch back; report the same
+        // generic denial as a showtime that was never published.
+        return c.json({ error: 'showtime_not_found' }, 404)
+      }
       const constraint = uniqueViolationConstraint(error)
       if (constraint === IDEMPOTENCY_CONSTRAINT) {
         // A concurrent attempt with the same key won between the replay read
